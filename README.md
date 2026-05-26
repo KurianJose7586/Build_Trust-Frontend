@@ -3,34 +3,36 @@
 <br />
 
 ```
-  ██████╗ ██████╗ ███╗   ██╗███████╗████████╗██████╗ ██╗   ██╗ ██████╗████████╗
- ██╔════╝██╔═══██╗████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║   ██║██╔════╝╚══██╔══╝
- ██║     ██║   ██║██╔██╗ ██║███████╗   ██║   ██████╔╝██║   ██║██║        ██║   
- ██║     ██║   ██║██║╚██╗██║╚════██║   ██║   ██╔══██╗██║   ██║██║        ██║   
- ╚██████╗╚██████╔╝██║ ╚████║███████║   ██║   ██║  ██║╚██████╔╝╚██████╗   ██║   
-  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝  
+  ██████╗ ██╗   ██╗██╗██╗     ██████╗     ████████╗██████╗ ██╗   ██╗███████╗████████╗
+  ██╔══██╗██║   ██║██║██║     ██╔══██╗    ╚══██╔══╝██╔══██╗██║   ██║██╔════╝╚══██╔══╝
+  ██████╔╝██║   ██║██║██║     ██║  ██║       ██║   ██████╔╝██║   ██║███████╗   ██║   
+  ██╔══██╗██║   ██║██║██║     ██║  ██║       ██║   ██╔══██╗██║   ██║╚════██║   ██║   
+  ██████╔╝╚██████╔╝██║███████╗██████╔╝       ██║   ██║  ██║╚██████╔╝███████║   ██║   
+  ╚═════╝  ╚═════╝ ╚═╝╚══════╝╚═════╝        ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝  
 ```
 
-# 🏗️ Construction & Labour Marketplace Platform
+# 🏗️ Build_Trust
 
-### *Modernizing India's Construction Workforce — One Booking at a Time*
+### *India's Construction & Labour Marketplace — Where Every Job Builds Trust*
 
 <br />
 
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES2024-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-22c55e?style=for-the-badge)](.)
-[![India](https://img.shields.io/badge/Market-India-FF9933?style=for-the-badge&logo=data:image/png;base64,)](.)
+[![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge)](.)
+[![Market](https://img.shields.io/badge/Market-India%20🇮🇳-FF9933?style=for-the-badge)](.)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge)](.)
 
 <br />
 
-> **Connecting customers with verified contractors, masons & labour workers** through AI-powered pricing, transparent tracking, and secure escrow payments — all in one platform.
+> **Build_Trust** is a web-based marketplace connecting customers with verified contractors, masons & labour workers —
+> powered by AI pricing, escrow payments, and transparent lead management.
+> *Currently under active development. Core UI is live. Backend & integrations coming next.*
 
 <br />
 
-[🚀 Live Demo](#) · [📖 Documentation](#) · [🐛 Report Bug](#) · [✨ Request Feature](#)
+[🚧 In Development](#️-current-status) · [📖 Docs](#) · [🐛 Report Bug](#) · [✨ Request Feature](#)
 
 <br />
 
@@ -40,9 +42,10 @@
 
 ## 📋 Table of Contents
 
+- [🚧 Current Status](#-current-status)
 - [💡 The Problem We Solve](#-the-problem-we-solve)
-- [✨ Platform Highlights](#-platform-highlights)
-- [🏛️ Architecture & Modules](#️-architecture--modules)
+- [✨ What Build_Trust Offers](#-what-build_trust-offers)
+- [🏛️ Platform Modules](#️-platform-modules)
 - [🗂️ Project Structure](#️-project-structure)
 - [⚙️ Tech Stack](#️-tech-stack)
 - [🚀 Getting Started](#-getting-started)
@@ -55,54 +58,75 @@
 
 ---
 
-## 💡 The Problem We Solve
+## 🚧 Current Status
 
-India's ₹20 lakh crore construction industry runs almost entirely on **word-of-mouth, middlemen, and informal agreements** — leading to:
+> **Build_Trust is in early-stage active development.**
+> The frontend shell is being built out. No backend, authentication, or live data integrations exist yet.
 
-| Pain Point | Impact |
-|---|---|
-| 🔍 No trusted discovery platform | Customers can't find verified workers |
-| 💸 Opaque, inconsistent pricing | Exploitation on both sides |
-| 📄 No contracts or paper trail | Payment disputes with no resolution |
-| 📵 Workers lack digital presence | Skilled labour remains invisible |
-| 🤝 Trust deficit | Projects stall, quality suffers |
-
-**ConstructHub** flips this entirely — bringing **transparency, technology, and trust** to every transaction.
+| Area | Status | Notes |
+|---|---|---|
+| 🎨 Landing Page UI | ✅ In Progress | Core layout being built |
+| 🔍 Search / Finder View | ✅ In Progress | Wizard + sidebar filters |
+| 👤 Worker Profile View | ✅ In Progress | Profile + booking widget |
+| 📊 Admin Dashboard View | ✅ In Progress | Metrics, charts & map |
+| 🔐 Authentication | ❌ Not Started | Role-based login planned |
+| 🗄️ Backend / Database | ❌ Not Started | API layer planned |
+| 💳 Payments / Escrow | ❌ Not Started | Integration planned |
+| 🤖 AI Pricing Engine | ❌ Not Started | Planned for Phase 3 |
+| 📍 Map / Location | ❌ Not Started | Planned for Phase 2 |
 
 ---
 
-## ✨ Platform Highlights
+## 💡 The Problem We Solve
+
+India's ₹20 lakh crore construction industry still runs on **word-of-mouth, middlemen, and handshake deals** — leaving both customers and workers exposed:
+
+| Pain Point | Who It Hurts |
+|---|---|
+| 🔍 No trusted discovery platform | Customers can't find verified workers |
+| 💸 Opaque, inconsistent pricing | Both sides get exploited |
+| 📄 No contracts or paper trail | Payment disputes with no resolution |
+| 📵 Workers have no digital presence | Skilled labour stays invisible |
+| 🤝 Deep trust deficit | Projects stall, quality suffers |
+
+**Build_Trust** is being built to fix exactly this — one verified booking at a time.
+
+---
+
+## ✨ What Build_Trust Offers
+
+*(Features below represent the full product vision. See [Roadmap](#️-roadmap) for what's built vs. planned.)*
 
 <table>
 <tr>
 <td width="50%">
 
-### 🤖 AI-Powered Pricing
-Smart cost estimation based on location, work type, area (sq ft), and real-time market trends. Upload a photo and get an instant quote.
+### 🤖 AI-Powered Pricing *(Planned)*
+Smart cost estimation based on location, work type, area (sq ft), and real-time market trends. Upload a photo — get an instant quote.
 
-### 🔒 Escrow Payment System
-Funds are held securely and released only upon work completion and customer approval. Zero payment risk.
+### 🔒 Escrow Payment System *(Planned)*
+Funds held securely, released only upon work completion and customer sign-off. Zero payment risk for both parties.
 
-### 📍 Location-Based Booking
-Find verified workers near you with map integration. Filter by skill, rating, and availability in real time.
+### 📍 Location-Based Booking *(Planned)*
+Find verified workers near you via map. Filter by skill, rating & real-time availability.
 
-### 🏆 Worker Recognition Engine
-Top Performer badges, verified tags, and skill-based rankings — rewarding quality and building trust.
+### 🏆 Worker Recognition Engine *(Planned)*
+Top Performer badges, verified tags, skill-based rankings — rewarding quality and building long-term trust.
 
 </td>
 <td width="50%">
 
-### 📊 Lead Management Automation
-End-to-end lead pipeline: Capture → Qualify → Assign → Follow-up → Convert → Review. Fully automated.
+### 📊 Lead Management Automation *(Planned)*
+End-to-end pipeline: Capture → Qualify → Assign → Follow-up → Convert → Review. Fully automated.
 
-### 📋 Digital Contracts *(Coming Soon)*
-Legally structured agreements between customers and workers generated in seconds.
+### 📋 Digital Contracts *(Planned)*
+Legally structured agreements generated between workers and customers in seconds.
 
-### 📸 Progress Tracking *(Coming Soon)*
-Daily work updates with geo-tagged photos. Know exactly what's happening on-site.
+### 📸 Progress Tracking *(Planned)*
+Daily geo-tagged photo updates. Know exactly what's happening on-site.
 
-### 🗣️ Voice-Based Interaction *(Coming Soon)*
-Multi-language voice interface for low-literacy workers. Hindi + regional languages.
+### 🗣️ Voice + Multi-Language *(Planned)*
+Hindi and regional language support with a voice interface for low-literacy workers.
 
 </td>
 </tr>
@@ -110,53 +134,59 @@ Multi-language voice interface for low-literacy workers. Hindi + regional langua
 
 ---
 
-## 🏛️ Architecture & Modules
+## 🏛️ Platform Modules
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    CONSTRUCTHUB PLATFORM                     │
-├──────────────┬──────────────┬──────────────┬────────────────┤
-│  MODULE 1    │  MODULE 2    │  MODULE 3    │   MODULE 4     │
-│  Dashboard   │ Lead Mgmt.  │  Financial   │  Customer      │
-│              │  System      │  Analysis    │  Engagement    │
-├──────────────┼──────────────┼──────────────┼────────────────┤
-│  MODULE 5    │  MODULE 6    │  MODULE 7    │   FUTURE       │
-│  Worker      │ Performance  │ Integration  │  CRM / API     │
-│  Recognition │  Analytics   │ & Access.    │  Webhooks      │
-└──────────────┴──────────────┴──────────────┴────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        BUILD_TRUST PLATFORM                      │
+├──────────────┬──────────────┬──────────────┬────────────────────┤
+│  MODULE 1    │  MODULE 2    │  MODULE 3    │   MODULE 4         │
+│  Dashboard   │  Lead Mgmt  │  Financial   │  Customer          │
+│              │  System      │  Analysis    │  Engagement        │
+├──────────────┼──────────────┼──────────────┼────────────────────┤
+│  MODULE 5    │  MODULE 6    │  MODULE 7    │   FUTURE           │
+│  Worker      │ Performance  │ Integration  │  CRM / API /       │
+│  Recognition │  Analytics   │ & Access.    │  Webhooks          │
+└──────────────┴──────────────┴──────────────┴────────────────────┘
 ```
-
-### Module Breakdown
 
 <details>
 <summary><strong>🔷 Module 1 — Dashboard</strong></summary>
+<br/>
 
 - Role-based secure login (Admin / Customer / Worker)
 - Real-time overview: active jobs, pending leads, revenue, worker availability
 - Labour assignment & availability tracking
-- Offers & combo packages (e.g., "Full House Construction", "Painting + Polishing Combo")
-- AI-based pricing suggestions
-- Escrow payment management
+- Offers & combo packages (e.g., "Full House Construction", "Painting + Polishing")
+- AI-based pricing suggestions *(planned)*
+- Escrow payment management *(planned)*
 - Subscription plan management
-- Location-based booking with maps
-- Auto wage calculation (work type × hours/days × area)
+- Location-based booking with maps *(planned)*
+- Auto wage calculation (work type × hours × area in sq ft)
 
 </details>
 
 <details>
 <summary><strong>🔷 Module 2 — Lead Management System</strong></summary>
+<br/>
 
 Fully automated 6-stage pipeline:
 
 ```
-Lead Capture → Qualification → Assignment → Follow-Up → Conversion → Feedback
-     📥              🔍              🎯            🔔            ✅            ⭐
+  📥 Capture → 🔍 Qualify → 🎯 Assign → 🔔 Follow-Up → ✅ Convert → ⭐ Feedback
 ```
+
+- Filter leads by budget, urgency & location
+- Auto-assign to relevant contractor
+- Notification & reminder automation
+- Lead → Booking conversion tracking
+- Post-service rating & review collection
 
 </details>
 
 <details>
 <summary><strong>🔷 Module 3 — Financial Analysis</strong></summary>
+<br/>
 
 - Cost estimation tools
 - Budget tracking & payment history
@@ -166,6 +196,7 @@ Lead Capture → Qualification → Assignment → Follow-Up → Conversion → F
 
 <details>
 <summary><strong>🔷 Module 4 — Customer Engagement & Feedback</strong></summary>
+<br/>
 
 - Rating & review system
 - Feedback forms & complaint handling
@@ -175,29 +206,32 @@ Lead Capture → Qualification → Assignment → Follow-Up → Conversion → F
 
 <details>
 <summary><strong>🔷 Module 5 — Worker Review & Recognition</strong></summary>
+<br/>
 
 - Worker rating system
 - "Top Performer" badges
 - Verified worker tags
-- Skill-based ranking
+- Skill-based ranking system
 
 </details>
 
 <details>
 <summary><strong>🔷 Module 6 — Performance Tracking & Analytics</strong></summary>
+<br/>
 
-- Job completion rate
+- Job completion rate tracking
 - Worker efficiency scores
-- Customer satisfaction score
-- Peak demand analysis
+- Customer satisfaction score (CSAT)
+- Peak demand & seasonal analysis
 
 </details>
 
 <details>
 <summary><strong>🔷 Module 7 — Integration & Accessibility</strong></summary>
+<br/>
 
 - CRM integration (future-ready architecture)
-- API & Webhooks support
+- REST API & Webhooks support
 - Mobile-first responsive UI
 - Cross-platform accessibility
 
@@ -208,30 +242,32 @@ Lead Capture → Qualification → Assignment → Follow-Up → Conversion → F
 ## 🗂️ Project Structure
 
 ```
-Construction_workplace/
+Construction_workplace/              ← Root (name will update as project grows)
 │
-├── index.html                    # Core HTML entry point
-├── package.json                  # Project dependencies & scripts
-├── vite.config.js                # Vite build configuration
+├── index.html                       # Core HTML entry point
+├── package.json                     # Project dependencies & scripts
+├── vite.config.js                   # Vite build & dev configuration
 │
 └── src/
-    ├── main.jsx                  # Application entry point
-    ├── App.jsx                   # Core routing, view selection & global state
-    ├── index.css                 # Design system, CSS variables & layout resets
+    ├── main.jsx                     # Application bootstrap & React root
+    ├── App.jsx                      # Core routing, view selection & global state
+    ├── index.css                    # Design system, CSS variables & layout resets
     │
     ├── data/
-    │   └── mockData.js           # Workers, admin metrics & activity logs
+    │   └── mockData.js              # Mock workers, admin metrics & activity logs
+    │                                  (replaces real API during development)
     │
     └── components/
-        ├── Header.jsx            # Premium navigation bar (shared across views)
-        ├── Footer.jsx            # Public footer
-        ├── LandingView.jsx       # Landing page component
-        ├── SearchView.jsx        # Worker finder with wizard steps & sidebar filters
-        ├── ProfileView.jsx       # Detailed worker profile page with booking widget
-        └── AdminView.jsx         # Operational overview dashboard (metrics, charts & map)
+        ├── Header.jsx               # Premium nav bar — shared across all public views
+        ├── Footer.jsx               # Public site footer
+        ├── LandingView.jsx          # Homepage / landing page component
+        ├── SearchView.jsx           # Worker finder with wizard steps & sidebar filters
+        ├── ProfileView.jsx          # Worker profile page with booking widget
+        └── AdminView.jsx            # Admin dashboard — metrics, charts & map overview
 ```
 
-> **Note:** This is the foundational structure. Many more modules, services, and components will be added as development progresses.
+> 📌 **This structure is the starting foundation.**
+> Backend services, authentication, API layers, and many more components will be added in upcoming phases.
 
 ---
 
@@ -239,14 +275,16 @@ Construction_workplace/
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| **Frontend Framework** | React 18 + JSX | Component-based UI architecture |
-| **Build Tool** | Vite 5 | Lightning-fast dev server & bundling |
-| **Styling** | CSS Variables + Custom Design System | Consistent, themeable UI |
-| **Routing & State** | React (App.jsx) | Client-side navigation & global state |
-| **Mock Data** | JavaScript (mockData.js) | Development-ready seed data |
-| **AI Pricing** | *(Integration Planned)* | Cost estimation engine |
-| **Maps** | *(Integration Planned)* | Location-based worker discovery |
-| **Payments** | *(Integration Planned)* | Escrow & secure transactions |
+| **Frontend Framework** | React 18 + JSX | Component-based UI |
+| **Build Tool** | Vite 5 | Fast dev server & optimized builds |
+| **Styling** | CSS Variables + Custom System | Themeable, scalable design |
+| **Routing & State** | React (App.jsx) | Client-side navigation & state |
+| **Dev Data** | mockData.js | Seed data while backend is pending |
+| **Auth** | *(Planned)* | Role-based access control |
+| **Backend / DB** | *(Planned)* | API, database, server logic |
+| **AI Pricing** | *(Planned)* | ML-based cost estimation |
+| **Maps** | *(Planned)* | Location-based worker discovery |
+| **Payments** | *(Planned)* | Escrow & secure transactions |
 
 ---
 
@@ -256,60 +294,66 @@ Construction_workplace/
 
 ```bash
 node >= 18.x
-npm >= 9.x
+npm  >= 9.x
 ```
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/construction-workplace.git
+git clone https://github.com/TanushkaSrivastava/Build_Trust
 
-# 2. Navigate to project directory
-cd construction-workplace
+# 2. Move into the project
+cd Build_Trust
 
 # 3. Install dependencies
 npm install
 
-# 4. Start development server
+# 4. Start local dev server
 npm run dev
+# → Opens at http://localhost:5173
 ```
 
 ### Available Scripts
 
 ```bash
-npm run dev        # Start local dev server (http://localhost:5173)
-npm run build      # Production build → /dist
+npm run dev        # Start development server with hot reload
+npm run build      # Production build → outputs to /dist
 npm run preview    # Preview production build locally
-npm run lint       # Run ESLint checks
+npm run lint       # Run ESLint across the codebase
 ```
+
+> ⚠️ **Note:** All data is currently mocked via `mockData.js`.
+> No real API calls, authentication, or database connections exist yet.
 
 ---
 
 ## 👥 User Roles
 
-| Role | Access | Capabilities |
+| Role | Access Level | Key Capabilities |
 |---|---|---|
-| 🔴 **Admin** | Full platform access | Manage workers, leads, payments, analytics |
-| 🔵 **Customer** | Customer dashboard | Search, book, track, review workers |
-| 🟢 **Worker** | Worker dashboard | Manage profile, accept jobs, track earnings |
+| 🔴 **Admin** | Full platform | Manage workers, leads, payments, analytics |
+| 🔵 **Customer** | Customer portal | Search, book, track jobs, review workers |
+| 🟢 **Worker** | Worker portal | Manage profile, accept jobs, track earnings |
+
+> Role-based authentication system is **planned for Phase 2**.
 
 ---
 
 ## 💎 Subscription Plans
 
 ```
-┌──────────────────┬──────────────────┬──────────────────────┐
-│   🟢 BASIC        │   🔵 PREMIUM      │   🟣 PRO (Coming)    │
-│   Free            │   Paid            │   Enterprise         │
-├──────────────────┼──────────────────┼──────────────────────┤
-│ Search workers   │ Priority booking │ Multi-team mgmt.     │
-│ Basic booking    │ AI cost estimate │ Advanced analytics   │
-│ View ratings     │ Verified workers │ CRM integration      │
-│ Basic profile    │ Faster service   │ Custom API access    │
-│ Limited leads    │ Analytics dash   │ Dedicated support    │
-│                  │ Premium badge    │ White-label option   │
-└──────────────────┴──────────────────┴──────────────────────┘
+┌──────────────────┬──────────────────┬──────────────────────────┐
+│   🟢 BASIC        │   🔵 PREMIUM      │   🟣 PRO  (Coming Soon)  │
+│   Free            │   Paid            │   Enterprise             │
+├──────────────────┼──────────────────┼──────────────────────────┤
+│ Search workers   │ Priority booking │ Multi-team management    │
+│ Basic booking    │ AI cost estimate │ Advanced analytics       │
+│ View ratings     │ Verified workers │ CRM integration          │
+│ Basic profile    │ Faster service   │ Custom API access        │
+│ Limited leads    │ Analytics dash   │ Dedicated support        │
+│                  │ Premium badge    │ White-label option       │
+└──────────────────┴──────────────────┴──────────────────────────┘
 ```
 
 ---
@@ -317,13 +361,13 @@ npm run lint       # Run ESLint checks
 ## 💰 Business Model
 
 ```
-Revenue Streams
+Build_Trust Revenue Streams
 │
-├── 📦 Commission per booking      (% of each transaction)
-├── 💳 Subscription plans          (Basic / Premium / Pro)
-├── 📢 Featured listings           (Boosted worker visibility)
-├── 📣 Advertisements              (Targeted platform ads)
-└── 🎁 Service packages            (Bundled construction combos)
+├── 📦 Commission per booking       % cut on every completed transaction
+├── 💳 Subscription plans           Basic (free) / Premium / Pro (paid tiers)
+├── 📢 Featured listings            Paid boost for worker visibility
+├── 📣 In-platform advertising      Targeted ads for material suppliers etc.
+└── 🎁 Service packages             Bundled construction combos & deals
 ```
 
 ---
@@ -331,63 +375,77 @@ Revenue Streams
 ## 🗺️ Roadmap
 
 ```
-Phase 1 — Foundation (Current)
-├── ✅ Landing page & core UI
-├── ✅ Worker search with filters
-├── ✅ Worker profile & booking widget
-└── ✅ Admin operational dashboard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 1 — Frontend Foundation  (NOW)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅  Project setup (Vite + React)
+  🔄  Landing page & core UI shell
+  🔄  Worker search with filters (SearchView)
+  🔄  Worker profile + booking widget (ProfileView)
+  🔄  Admin operational dashboard (AdminView)
+  🔄  Mock data layer (mockData.js)
 
-Phase 2 — Core Platform
-├── 🔄 Authentication (role-based)
-├── 🔄 Real-time lead management
-├── 🔄 Escrow payment integration
-└── 🔄 Worker onboarding flow
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 2 — Core Backend & Auth
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔮  Role-based authentication (Admin / Customer / Worker)
+  🔮  REST API layer
+  🔮  Database integration
+  🔮  Real-time lead management pipeline
+  🔮  Escrow payment integration
+  🔮  Worker onboarding & KYC flow
 
-Phase 3 — Intelligence Layer
-├── 🔮 AI cost estimator (image upload → quote)
-├── 🔮 Location-based map booking
-├── 🔮 Digital contract system
-└── 🔮 Progress tracking with photos
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 3 — Intelligence & Trust Layer
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔮  AI cost estimator (image upload → quote)
+  🔮  Location-based map booking
+  🔮  Digital contract generation
+  🔮  Job progress tracking with geo-tagged photos
+  🔮  Rating, review & recognition engine
 
-Phase 4 — Scale
-├── 🔮 Multi-language support (Hindi + regional)
-├── 🔮 Voice-based interaction for workers
-├── 🔮 KYC verification & trust layer
-├── 🔮 CRM integration & API/Webhooks
-└── 🔮 Pro plan for contractor teams
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 4 — Scale & Accessibility
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔮  Multi-language support (Hindi + regional)
+  🔮  Voice-based interaction for workers
+  🔮  CRM integration & API/Webhooks
+  🔮  Pro plan for contractor teams & firms
+  🔮  Mobile app (iOS + Android)
 
-Legend: ✅ Done  🔄 In Progress  🔮 Planned
+Legend:  ✅ Done   🔄 In Progress   🔮 Planned
 ```
 
 ---
 
 ## ⚠️ Known Challenges
 
-| Challenge | Mitigation Strategy |
+| Challenge | Our Approach |
 |---|---|
-| 📵 Low digital literacy among workers | Voice UI + simplified onboarding |
-| 🤝 Trust deficit with new platform | KYC verification + escrow payments |
-| 💸 Payment disputes | Milestone-based escrow release |
-| 🌐 Internet dependency in remote areas | Offline-first features (planned) |
+| 📵 Low digital literacy among workers | Voice UI + simplified onboarding (Phase 4) |
+| 🤝 Trust deficit on a new platform | KYC verification + escrow payment protection |
+| 💸 Payment disputes | Milestone-based escrow release system |
+| 🌐 Internet access in remote areas | Offline-first features (under consideration) |
 
 ---
 
 ## 🤝 Contributing
 
-This project is in active development. Contributions, ideas, and feedback are welcome.
+Build_Trust is in early development — ideas, feedback, and contributions are very welcome.
 
 ```bash
-# Fork the repo, create your branch
+# 1. Fork this repo
+# 2. Create your feature branch
 git checkout -b feature/your-feature-name
 
-# Commit your changes
-git commit -m "feat: add your feature description"
+# 3. Commit using Conventional Commits
+git commit -m "feat: describe what you added"
 
-# Push and open a PR
+# 4. Push & open a Pull Request
 git push origin feature/your-feature-name
 ```
 
-Please follow the [Conventional Commits](https://www.conventionalcommits.org/) standard for commit messages.
+Please follow the [Conventional Commits](https://www.conventionalcommits.org/) standard.
 
 ---
 
@@ -397,11 +455,13 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) s
 
 **Built with ❤️ for India's construction workers**
 
-*Transparency · Efficiency · Trust*
+### *Every job booked. Every worker verified. Every payment secured.*
+### *That's how we Build_Trust.*
 
 <br />
 
 [![Made in India](https://img.shields.io/badge/Made%20in-India%20🇮🇳-FF9933?style=flat-square)](.)
-[![Stars](https://img.shields.io/github/stars/your-username/construction-workplace?style=flat-square)](.)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](.)
+[![Stars](https://img.shields.io/github/stars/your-username/Build_Trust?style=flat-square)](.)
 
 </div>
