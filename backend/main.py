@@ -39,8 +39,23 @@ async def get_workers():
         return MOCK_WORKERS
     
     try:
-        data = await dataverse_service.get_data("bt_specialists")
-        return data.get("value", [])
+        # Using correct pluralized logical name
+        data = await dataverse_service.get_data("cr034_specialists")
+        workers = data.get("value", [])
+        
+        # Mapping Dataverse fields back to what the Frontend expects
+        mapped_workers = []
+        for w in workers:
+            mapped_workers.append({
+                "id": w.get("cr034_specialistid"), # Dataverse auto-generates this UUID
+                "name": w.get("cr034_Name"),
+                "specialty": w.get("cr034_Specialty"),
+                "rate": w.get("cr034_HourlyRate"),
+                "rating": w.get("cr034_Rating"),
+                "verified": w.get("cr034_Verified"),
+                "location": w.get("cr034_location", "India") # Default if not mapped yet
+            })
+        return mapped_workers
     except Exception as e:
         return {"error": str(e), "fallback": MOCK_WORKERS}
 
@@ -50,6 +65,7 @@ async def create_lead(lead_data: dict):
         return {"status": "mock_success", "data": lead_data}
     
     try:
+        # Assuming you'll create a 'bt_leads' table later
         data = await dataverse_service.post_data("bt_leads", lead_data)
         return {"status": "success", "data": data}
     except Exception as e:
