@@ -17,10 +17,13 @@ export default function App() {
   // React Global Databases
   const [workers, setWorkers] = useState([]);
   const [adminState, setAdminState] = useState(initialAdminState);
+  const [isLoadingWorkers, setIsLoadingWorkers] = useState(true);
+  const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
 
   // FETCH WORKERS FROM BACKEND
   useEffect(() => {
     const fetchWorkers = async () => {
+      setIsLoadingWorkers(true);
       try {
         const response = await fetch('http://localhost:8000/api/workers');
         const data = await response.json();
@@ -33,6 +36,8 @@ export default function App() {
       } catch (err) {
         console.error("Failed to fetch workers:", err);
         setWorkers(initialWorkers);
+      } finally {
+        setIsLoadingWorkers(false);
       }
     };
     fetchWorkers();
@@ -41,6 +46,7 @@ export default function App() {
   // FETCH ADMIN STATS FROM BACKEND
   useEffect(() => {
     const fetchAdminStats = async () => {
+      setIsLoadingAdmin(true);
       try {
         const response = await fetch('http://localhost:8000/api/admin/stats');
         const data = await response.json();
@@ -49,6 +55,8 @@ export default function App() {
         }
       } catch (err) {
         console.error("Failed to fetch admin stats:", err);
+      } finally {
+        setIsLoadingAdmin(false);
       }
     };
     fetchAdminStats();
@@ -185,35 +193,51 @@ export default function App() {
     desc: ""
   });
 
-  const handlePostJobConfirm = () => {
+  const handlePostJobConfirm = async () => {
     if (postJobForm.title.trim() === "" || postJobForm.location.trim() === "") {
       addToast("Please fill all required project details", "info");
       return;
     }
 
-    setAdminState(prev => {
-      const newPendingLeads = prev.pendingLeads + 1;
-      const newLiveOps = [
-        {
-          id: Date.now(),
-          text: `Lead Posted: "${postJobForm.title}" (${postJobForm.category}) in ${postJobForm.location} - Budget: ${postJobForm.budget}`,
-          time: "Just now",
-          type: "lead",
-          icon: "★",
-          color: "blue-bg"
-        },
-        ...prev.liveOps
-      ];
+    try {
+      const response = await fetch('http://localhost:8000/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postJobForm)
+      });
+      const data = await response.json();
+      
+      if (data.status === "success" || data.status === "mock_success") {
+        setAdminState(prev => {
+          const newPendingLeads = prev.pendingLeads + 1;
+          const newLiveOps = [
+            {
+              id: Date.now(),
+              text: `Lead Posted: "${postJobForm.title}" (${postJobForm.category}) in ${postJobForm.location} - Budget: ${postJobForm.budget}`,
+              time: "Just now",
+              type: "lead",
+              icon: "★",
+              color: "blue-bg"
+            },
+            ...prev.liveOps
+          ];
 
-      return {
-        ...prev,
-        pendingLeads: newPendingLeads,
-        liveOps: newLiveOps
-      };
-    });
+          return {
+            ...prev,
+            pendingLeads: newPendingLeads,
+            liveOps: newLiveOps
+          };
+        });
 
-    addToast("Project requirements posted successfully! Admin Dashboard notified.");
-    setActiveModal(null);
+        addToast("Project requirements posted successfully! Admin Dashboard notified.");
+        setActiveModal(null);
+      } else {
+        throw new Error(data.message || "Failed to post lead");
+      }
+    } catch (err) {
+      console.error("Failed to post lead:", err);
+      addToast("Failed to post lead. Please check backend connection.", "error");
+    }
   };
 
   // 5. CHAT SIMULATOR HANDLERS
@@ -348,6 +372,7 @@ export default function App() {
         {activeView === 'search' && (
           <SearchView 
             workers={workers}
+            isLoading={isLoadingWorkers}
             setActiveView={changeRoute}
             searchFilters={searchFilters}
             setSearchFilters={setSearchFilters}
@@ -388,6 +413,7 @@ export default function App() {
         {activeView === 'admin' && (
           <AdminView 
             adminState={adminState}
+            isLoading={isLoadingAdmin}
             setActiveView={changeRoute}
             onResolveIssue={handleResolveIssue}
             onPostJob={() => {

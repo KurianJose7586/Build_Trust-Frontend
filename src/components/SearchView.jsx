@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export default function SearchView({ 
   workers, 
+  isLoading,
   setActiveView, 
   searchFilters, 
   setSearchFilters, 
@@ -52,9 +53,9 @@ export default function SearchView({
     // Text search
     if (searchFilters.text) {
       const q = searchFilters.text.toLowerCase();
-      const inName = worker.name.toLowerCase().includes(q);
-      const inTag = worker.tags.some(t => t.toLowerCase().includes(q));
-      const inSpec = worker.specialty.toLowerCase().includes(q);
+      const inName = (worker.name || "").toLowerCase().includes(q);
+      const inTag = (worker.tags || []).some(t => t.toLowerCase().includes(q));
+      const inSpec = (worker.specialty || "").toLowerCase().includes(q);
       if (!inName && !inTag && !inSpec) return false;
     }
 
@@ -192,13 +193,26 @@ export default function SearchView({
             <div>
               <h2>Matched Specialists</h2>
               <p className="results-subtitle">
-                Based on your requirements. <strong>{filteredWorkers.length}</strong> Matches Found
+                Based on your requirements. <strong>{isLoading ? "..." : filteredWorkers.length}</strong> Matches Found
               </p>
             </div>
           </div>
 
           <div className="worker-list">
-            {filteredWorkers.length === 0 ? (
+            {isLoading ? (
+              // SKELETON LOADERS
+              [1, 2, 3].map(i => (
+                <div key={i} className="worker-row-card">
+                  <div className="worker-row-avatar skeleton"></div>
+                  <div className="worker-row-info">
+                    <div className="skeleton skeleton-title"></div>
+                    <div className="skeleton skeleton-text"></div>
+                    <div className="skeleton skeleton-text"></div>
+                    <div className="skeleton skeleton-text" style={{ width: '40%' }}></div>
+                  </div>
+                </div>
+              ))
+            ) : filteredWorkers.length === 0 ? (
               <div className="text-center" style={{ padding: '40px', color: 'var(--text-muted)' }}>
                 No specialists found matching your filter criteria. Try expanding your search.
               </div>
@@ -221,7 +235,7 @@ export default function SearchView({
                           {worker.name} {worker.verified && <span className="verified-icon">✓</span>}
                         </h3>
                         <div className="worker-skills-tags">
-                          {worker.tags.map(t => <span key={t} className="tag-badge">{t}</span>)}
+                          {(worker.tags || []).map(t => <span key={t} className="tag-badge">{t}</span>)}
                         </div>
                       </div>
                       <div className="worker-row-rating">
