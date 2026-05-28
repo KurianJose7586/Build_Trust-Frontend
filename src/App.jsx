@@ -28,14 +28,30 @@ export default function App() {
           setWorkers(data);
         } else {
           console.error("Malformed workers data:", data);
-          setWorkers(initialWorkers); // Fallback
+          setWorkers(initialWorkers);
         }
       } catch (err) {
         console.error("Failed to fetch workers:", err);
-        setWorkers(initialWorkers); // Fallback
+        setWorkers(initialWorkers);
       }
     };
     fetchWorkers();
+  }, []);
+
+  // FETCH ADMIN STATS FROM BACKEND
+  useEffect(() => {
+    const fetchAdminStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/stats');
+        const data = await response.json();
+        if (data && !data.error) {
+          setAdminState(prev => ({ ...prev, ...data }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin stats:", err);
+      }
+    };
+    fetchAdminStats();
   }, []);
   
   // Modals & Overlays Visibility
