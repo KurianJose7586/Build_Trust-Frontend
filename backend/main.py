@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mock Data (copied from frontend mockData.js for convenience in development)
+# Mock Data
 MOCK_WORKERS = [
     {
         "id": "rajesh-kumar",
@@ -36,6 +36,16 @@ MOCK_WORKERS = [
         "location": "Delhi NCR",
     }
 ]
+
+MOCK_ADMIN_STATS = {
+    "activeJobs": 124,
+    "pendingLeads": 42,
+    "completionRate": 80,
+    "onSchedule": 102,
+    "delayed": 22,
+    "unverifiedCount": 14,
+    "issuesCount": 2,
+}
 
 # Initialize service only if credentials are provided
 DATAVERSE_CONFIGURED = all([
@@ -68,6 +78,18 @@ async def get_workers():
         return data.get("value", [])
     except Exception as e:
         return {"error": str(e), "fallback": MOCK_WORKERS}
+
+@app.get("/api/admin/stats")
+async def get_admin_stats():
+    if not DATAVERSE_CONFIGURED:
+        return MOCK_ADMIN_STATS
+    
+    try:
+        # Aggregate from various Dataverse tables
+        # For now, just return mock or implement basic aggregation logic
+        return MOCK_ADMIN_STATS
+    except Exception as e:
+        return {"error": str(e), "fallback": MOCK_ADMIN_STATS}
 
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
