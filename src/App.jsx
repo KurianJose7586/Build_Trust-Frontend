@@ -15,8 +15,28 @@ export default function App() {
   const [currentLocation, setCurrentLocation] = useState('Greater Noida');
 
   // React Global Databases
-  const [workers, setWorkers] = useState(initialWorkers);
+  const [workers, setWorkers] = useState([]);
   const [adminState, setAdminState] = useState(initialAdminState);
+
+  // FETCH WORKERS FROM BACKEND
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/workers');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setWorkers(data);
+        } else {
+          console.error("Malformed workers data:", data);
+          setWorkers(initialWorkers); // Fallback
+        }
+      } catch (err) {
+        console.error("Failed to fetch workers:", err);
+        setWorkers(initialWorkers); // Fallback
+      }
+    };
+    fetchWorkers();
+  }, []);
   
   // Modals & Overlays Visibility
   const [activeModal, setActiveModal] = useState(null); // 'login' | 'booking' | 'chat' | 'ai' | 'post-job' | 'comparison'
