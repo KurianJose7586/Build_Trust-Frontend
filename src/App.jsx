@@ -345,12 +345,24 @@ export default function App() {
 
   // 6. AI ESTIMATION TOOL
   const [aiState, setAiState] = useState('upload'); 
+  const [aiResult, setAiResult] = useState(null);
   
-  const handleAiUpload = () => {
+  const handleAiUpload = async () => {
     setAiState('processing');
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:8000/api/ai/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: wizardForm.description }) 
+      });
+      const data = await response.json();
+      setAiResult(data);
       setAiState('result');
-    }, 2000);
+    } catch (err) {
+      console.error("AI Estimation failed:", err);
+      addToast("AI Analysis failed. Using fallback estimates.", "error");
+      setAiState('result');
+    }
   };
 
   // 7. ADMIN DASHBOARD ISSUE RESOLVER
@@ -798,23 +810,23 @@ export default function App() {
                     <tbody>
                       <tr>
                         <td>Recommended Trade</td>
-                        <td>Masonry / Brickwork</td>
+                        <td>{aiResult?.trade || 'Masonry / Brickwork'}</td>
                       </tr>
                       <tr>
                         <td>Estimated Work Area</td>
-                        <td>120 sq ft</td>
+                        <td>{aiResult?.area || '120 sq ft'}</td>
                       </tr>
                       <tr>
                         <td>Average Material Cost</td>
-                        <td>₹14,500</td>
+                        <td>₹{(aiResult?.material_cost || 14500).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Labor Hours Estimate</td>
-                        <td>16 Hours (2 Days)</td>
+                        <td>{aiResult?.labor_hours || 16} Hours</td>
                       </tr>
                       <tr className="total-row">
                         <td>Total Project Estimate</td>
-                        <td>₹24,800</td>
+                        <td>₹{(aiResult?.total_estimate || 24800).toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -822,7 +834,7 @@ export default function App() {
                     className="btn btn-accent btn-full"
                     onClick={() => {
                       setActiveModal(null);
-                      applyFilters({ ...searchFilters, category: 'Masonry', text: 'Masonry' });
+                      applyFilters({ ...searchFilters, category: aiResult?.trade || 'Masonry', text: aiResult?.trade || 'Masonry' });
                       navigate('/search');
                     }}
                   >
