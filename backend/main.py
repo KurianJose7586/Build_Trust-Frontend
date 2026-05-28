@@ -94,9 +94,32 @@ async def create_lead(lead_data: dict):
         return {"status": "mock_success", "data": lead_data}
     
     try:
-        data = await dataverse_service.post_data("bt_leads", lead_data)
-        return {"status": "success", "data": data}
+        # Map frontend lead fields to Dataverse cr034_lead table
+        # Assuming table exists or using a generic catch-all
+        await dataverse_service.post_data("cr034_leads", lead_data)
+        return {"status": "success"}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/jobs")
+async def create_job(job_data: dict):
+    if not dataverse_service.configured:
+        return {"status": "mock_success", "data": job_data}
+    
+    try:
+        # Prepare Dataverse payload
+        dv_payload = {
+            "cr034_name": f"Job: {job_data.get('workerName')}",
+            "cr034_description": job_data.get("description"),
+            "cr034_address": job_data.get("address"),
+            "cr034_hours": job_data.get("hours"),
+            "cr034_totalcost": job_data.get("totalCost"),
+            "cr034_priority": job_data.get("priority")
+        }
+        await dataverse_service.post_data("cr034_jobs", dv_payload)
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Job Creation Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

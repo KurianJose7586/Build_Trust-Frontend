@@ -186,39 +186,55 @@ export default function App() {
     priority: "Standard"
   });
 
-  const handleBookingConfirm = () => {
+  const handleBookingConfirm = async () => {
     const worker = workers.find(w => w.id === bookingWorkerId);
     if (!worker) return;
 
     const totalCost = worker.rate * wizardForm.hours;
     
-    setAdminState(prev => {
-      const newActiveJobs = prev.activeJobs + 1;
-      const newOnSchedule = prev.onSchedule + 1;
-      
-      const newLiveOps = [
-        {
-          id: Date.now(),
-          text: `Hired: ${worker.name} accepted job at ${wizardForm.address} (₹${totalCost.toLocaleString()} / ${wizardForm.hours} hrs) - [${wizardForm.priority}]`,
-          time: "Just now",
-          type: "job",
-          icon: "✓",
-          color: "green-bg"
-        },
-        ...prev.liveOps
-      ];
+    const bookingPayload = {
+      ...wizardForm,
+      workerId: worker.id,
+      workerName: worker.name,
+      totalCost: totalCost
+    };
 
-      return {
-        ...prev,
-        activeJobs: newActiveJobs,
-        onSchedule: newOnSchedule,
-        liveOps: newLiveOps
-      };
-    });
+    try {
+      const response = await fetch('http://localhost:8000/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingPayload)
+      });
+      const data = await response.json();
 
-    addToast(`Hired ${worker.name}! Hired request registered on Admin Portal.`, 'success');
-    setActiveModal(null);
-    navigate('/search');
+      if (data.status === "success" || data.status === "mock_success") {
+        setAdminState(prev => {
+          const newActiveJobs = prev.activeJobs + 1;
+          const newOnSchedule = prev.onSchedule + 1;
+          
+          const newLiveOps = [
+            {
+              id: Date.now(),
+              text: `Hired: ${worker.name} accepted job at ${wizardForm.address} (₹${totalCost.toLocaleString()} / ${wizardForm.hours} hrs)`,
+              time: "Just now",
+              type: "job",
+              icon: "✓",
+              color: "green-bg"
+            },
+            ...prev.liveOps
+          ];
+
+          return { ...prev, activeJobs: newActiveJobs, onSchedule: newOnSchedule, liveOps: newLiveOps };
+        });
+
+        addToast(`Hired ${worker.name}! Request saved to Dataverse.`, 'success');
+        setActiveModal(null);
+        navigate('/search');
+      }
+    } catch (err) {
+      console.error("Failed to confirm booking:", err);
+      addToast("Failed to register booking. Check backend connection.", "error");
+    }
   };
 
   // 4. POST JOB WIZARD HANDLERS
