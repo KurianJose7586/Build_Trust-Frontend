@@ -1,7 +1,9 @@
 fastapi
 uvicorn
 python-dotenv
-msal
-httpx
+motor
+dnspython
 pydantic
 pydantic-settings
+httpx
+pandas

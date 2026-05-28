@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from app.services.dataverse_service import DataverseService
+from app.db import connect_to_mongo, close_mongo_connection, get_database
 
 load_dotenv()
 
@@ -17,26 +17,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mock Data
-MOCK_WORKERS = [
-    {
-        "id": "rajesh-kumar",
-        "name": "Rajesh Kumar",
-        "specialty": "Masonry",
-        "rating": 4.9,
-        "verified": True,
-        "location": "Greater Noida",
-    },
-    {
-        "id": "manish-sharma",
-        "name": "Manish Sharma",
-        "specialty": "Electrical",
-        "rating": 4.9,
-        "verified": True,
-        "location": "Delhi NCR",
-    }
-]
+@app.on_event("startup")
+async def startup_db_client():
+    await connect_to_mongo()
 
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    await close_mongo_connection()
+
+# Mock Data for fallback
 MOCK_ADMIN_STATS = {
     "activeJobs": 124,
     "pendingLeads": 42,
@@ -47,59 +36,45 @@ MOCK_ADMIN_STATS = {
     "issuesCount": 2,
 }
 
-# Initialize service only if credentials are provided
-DATAVERSE_CONFIGURED = all([
-    os.getenv("CLIENT_ID"),
-    os.getenv("CLIENT_SECRET"),
-    os.getenv("TENANT_ID"),
-    os.getenv("DATAVERSE_URL")
-])
-
-if DATAVERSE_CONFIGURED:
-    dataverse_service = DataverseService()
-else:
-    dataverse_service = None
-    print("WARNING: Dataverse credentials not found. Running in Mock Mode.")
-
 @app.get("/")
 async def root():
+    db = get_database()
+    status = "Connected" if db is not None else "Disconnected"
     return {
         "message": "Welcome to Build_Trust CRM API",
-        "dataverse_status": "Connected" if DATAVERSE_CONFIGURED else "Mock Mode"
+        "database": "MongoDB",
+        "status": status
     }
 
 @app.get("/api/workers")
 async def get_workers():
-    if not DATAVERSE_CONFIGURED:
-        return MOCK_WORKERS
+    db = get_database()
+    if db is None:
+        return {"error": "Database not connected"}
     
     try:
-        data = await dataverse_service.get_data("bt_specialists")
-        return data.get("value", [])
+        workers = await db.workers.find().to_list(100)
+        # Clean up Mongo's _id for JSON serializability
+        for w in workers:
+            w["_id"] = str(w["_id"])
+        return workers
     except Exception as e:
-        return {"error": str(e), "fallback": MOCK_WORKERS}
+        return {"error": str(e)}
 
 @app.get("/api/admin/stats")
 async def get_admin_stats():
-    if not DATAVERSE_CONFIGURED:
-        return MOCK_ADMIN_STATS
-    
-    try:
-        # Aggregate from various Dataverse tables
-        # For now, just return mock or implement basic aggregation logic
-        return MOCK_ADMIN_STATS
-    except Exception as e:
-        return {"error": str(e), "fallback": MOCK_ADMIN_STATS}
+    # For now, return mock or calculate from collections
+    return MOCK_ADMIN_STATS
 
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
-    if not DATAVERSE_CONFIGURED:
-        print(f"MOCK: Received lead: {lead_data}")
-        return {"status": "success", "mode": "mock", "data": lead_data}
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
     
     try:
-        data = await dataverse_service.post_data("bt_leads", lead_data)
-        return {"status": "success", "data": data}
+        result = await db.leads.insert_one(lead_data)
+        return {"status": "success", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

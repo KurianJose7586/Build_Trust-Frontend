@@ -1,26 +1,25 @@
 # Build_Trust Project Progress
 
-This document tracks the migration of the Build_Trust CRM from a static mock-up to a fully dynamic, Dataverse-integrated Enterprise application.
+This document tracks the migration of the Build_Trust CRM from a static mock-up to a fully dynamic, MongoDB-integrated Enterprise application.
 
-## 🚀 Current Status: **Backend Initialized (Mock Mode Active)**
+## 🚀 Current Status: **Backend Pivoted to MongoDB (Ready for Connection)**
 
 ---
 
 ## 🛠 Phase 1: Backend Foundation
 - [x] **Initialize Python FastAPI Backend**
   - [x] Set up directory structure
-  - [x] Create `requirements.txt` with core dependencies (FastAPI, MSAL, HTTPX)
-  - [x] Implement `DataverseService` (Auth + OData)
+  - [x] Create `requirements.txt` with core dependencies (FastAPI, Motor, Pandas)
+  - [x] Implement `MongoDB` connection logic
 - [x] **Development Environment**
-  - [x] Create `.env.example` for secure configuration
+  - [x] Create `.env.example` with MongoDB connection strings
   - [x] Create `run.bat` for local execution
-  - [x] Implement "Mock Mode" fallback for development without credentials
 
 ## 📊 Phase 2: Data Migration (The 100k Challenge)
 - [ ] **CSV Migration Engine**
   - [ ] Implement chunk-based reader for `Hire_Worker_CRM_Migration_Sample_100000.csv`
   - [ ] Build data cleaning logic (Email validation, Status mapping)
-  - [ ] Create Dataverse Batch Upload service
+  - [ ] Create MongoDB Bulk Insert service
 - [ ] **Validation & Quality Control**
   - [ ] Implement "Migration Batch" tracking
   - [ ] Handle `duplicate_flag` and quality issues reported in CSV
@@ -33,6 +32,7 @@ This document tracks the migration of the Build_Trust CRM from a static mock-up 
   - [ ] Connect "Post Job" modal to `POST /api/leads`
   - [ ] Connect "Booking Wizard" to backend Job creation
   - [ ] Implement dynamic "Specialist Profile" fetching by ID
+
 
 ## 🧠 Phase 4: Advanced Persistence & Logic
 - [ ] **Communication**
