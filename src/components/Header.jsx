@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function Header({ 
   activeView, 
@@ -22,7 +23,6 @@ export default function Header({
   const handleLocationChange = (loc) => {
     setCurrentLocation(loc);
     setLocDropdownOpen(false);
-    // Show toast using custom event or standard notification
     const event = new CustomEvent('show-toast', { detail: { message: `Location switched to: ${loc}.`, type: 'info' } });
     window.dispatchEvent(event);
   };
@@ -40,9 +40,9 @@ export default function Header({
     <header className="site-header">
       <div className="header-container">
         <div className="header-left">
-          <a href="#home" className="logo" onClick={() => setActiveView('home')}>
+          <Link to="/" className="logo">
             <span className="logo-bold">Build</span><span className="logo-accent">_Trust</span>
-          </a>
+          </Link>
           
           <div 
             className="location-selector" 
@@ -77,20 +77,18 @@ export default function Header({
         </div>
 
         <nav className="header-nav">
-          <a 
-            href="#home" 
+          <Link 
+            to="/" 
             className={`nav-link ${activeView === 'home' ? 'active' : ''}`}
-            onClick={() => setActiveView('home')}
           >
             Home
-          </a>
-          <a 
-            href="#search" 
+          </Link>
+          <Link 
+            to="/search" 
             className={`nav-link ${activeView === 'search' ? 'active' : ''}`}
-            onClick={() => setActiveView('search')}
           >
             Find Workers
-          </a>
+          </Link>
           <a 
             href="#services" 
             className="nav-link"
@@ -122,19 +120,15 @@ export default function Header({
 
         <div className="header-actions">
           <button className="btn btn-text login-btn" onClick={onOpenLogin}>Login</button>
-          <a 
-            href="#admin" 
+          <Link 
+            to="/admin" 
             className="btn btn-primary profile-btn"
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveView('admin');
-            }}
           >
             <svg className="icon-user" viewBox="0 0 24 24" width="16" height="16" style={{ marginRight: '6px' }}>
               <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
             </svg>
             Admin Portal
-          </a>
+          </Link>
         </div>
       </div>
     </header>

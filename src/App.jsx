@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LandingView from './components/LandingView';
@@ -8,10 +9,52 @@ import AdminView from './components/AdminView';
 
 import { initialWorkers, initialAdminState } from './data/mockData';
 
+// Wrapper to handle ProfileView with URL params
+function ProfileViewWrapper({ 
+  workers, 
+  changeRoute, 
+  setBookingWorkerId, 
+  setWizardStep, 
+  setActiveModal, 
+  chatLogs, 
+  setChatLogs, 
+  setChattingWorkerId, 
+  addToast 
+}) {
+  const { id } = useParams();
+  return (
+    <ProfileView 
+      workerId={id}
+      workers={workers}
+      setActiveView={changeRoute}
+      onOpenBookingWizard={(workerId) => {
+        setBookingWorkerId(workerId);
+        setWizardStep(1);
+        setActiveModal('booking');
+      }}
+      onOpenChatSimulator={(workerId) => {
+        setChattingWorkerId(workerId);
+        if (!chatLogs[workerId]) {
+          const w = workers.find(item => item.id === workerId);
+          setChatLogs(prev => ({
+            ...prev,
+            [workerId]: [{ sender: 'worker', text: `Namaste! Thanks for reaching out. I'm ${w?.name || 'Specialist'}, a professional ${w?.specialty || ''} specialist. How can I help you today?` }]
+          }));
+        }
+        setActiveModal('chat');
+      }}
+      onCallWorker={(name) => {
+        addToast(`Initiating secure direct call connection with ${name}...`, 'info');
+      }}
+    />
+  );
+}
+
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Navigation & Location states
-  const [activeView, setActiveView] = useState('home');
-  const [profileId, setProfileId] = useState(null);
   const [currentLocation, setCurrentLocation] = useState('Greater Noida');
 
   // React Global Databases
@@ -63,7 +106,7 @@ export default function App() {
   }, []);
   
   // Modals & Overlays Visibility
-  const [activeModal, setActiveModal] = useState(null); // 'login' | 'booking' | 'chat' | 'ai' | 'post-job' | 'comparison'
+  const [activeModal, setActiveModal] = useState(null); 
   const [bookingWorkerId, setBookingWorkerId] = useState(null);
   const [chattingWorkerId, setChattingWorkerId] = useState(null);
   
@@ -85,38 +128,14 @@ export default function App() {
   // Simulated Chat logs { workerId: [messages] }
   const [chatLogs, setChatLogs] = useState({});
 
-  // 1. SIMPLE ROUTING SYNC WITH HASHES
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash || '#home';
-      if (hash === '#admin') {
-        setActiveView('admin');
-      } else if (hash.startsWith('#profile/')) {
-        const id = hash.split('/')[1];
-        setProfileId(id);
-        setActiveView('profile');
-      } else if (hash === '#search') {
-        setActiveView('search');
-      } else {
-        setActiveView('home');
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Run on mount
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // Sync hash when state activeView changes manually (for button click routes)
+  // Navigation Sync
   const changeRoute = (viewName) => {
-    if (viewName === 'home') window.location.hash = '#home';
-    else if (viewName === 'search') window.location.hash = '#search';
-    else if (viewName === 'admin') window.location.hash = '#admin';
+    if (viewName === 'home') navigate('/');
+    else if (viewName === 'search') navigate('/search');
+    else if (viewName === 'admin') navigate('/admin');
     else if (viewName.startsWith('profile/')) {
       const id = viewName.split('/')[1];
-      setProfileId(id);
-      window.location.hash = `#profile/${id}`;
+      navigate(`/profile/${id}`);
     }
   };
 
@@ -138,7 +157,7 @@ export default function App() {
     return () => window.removeEventListener('show-toast', handleToastEvent);
   }, []);
 
-  // 3. BOOKING WIZARD HANDLERS (CLOSED-LOOP PIPELINE)
+  // 3. BOOKING WIZARD HANDLERS
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardForm, setWizardForm] = useState({
     description: "Need masonry stone work repair for my garden patio walls.",
@@ -154,7 +173,6 @@ export default function App() {
 
     const totalCost = worker.rate * wizardForm.hours;
     
-    // Increment active jobs count reactively
     setAdminState(prev => {
       const newActiveJobs = prev.activeJobs + 1;
       const newOnSchedule = prev.onSchedule + 1;
@@ -181,10 +199,10 @@ export default function App() {
 
     addToast(`Hired ${worker.name}! Hired request registered on Admin Portal.`, 'success');
     setActiveModal(null);
-    changeRoute('search');
+    navigate('/search');
   };
 
-  // 4. POST JOB WIZARD HANDLERS (CLOSED-LOOP PIPELINE)
+  // 4. POST JOB WIZARD HANDLERS
   const [postJobForm, setPostJobForm] = useState({
     title: "",
     category: "Electrical",
@@ -250,7 +268,6 @@ export default function App() {
     const worker = workers.find(w => w.id === workerId);
     if (!worker) return;
 
-    // Save Client message
     const clientMsg = { sender: 'client', text: chatInput };
     setChatLogs(prev => {
       const list = prev[workerId] || [];
@@ -258,7 +275,6 @@ export default function App() {
     });
     setChatInput("");
 
-    // Simulate auto worker reply after 1.2s
     setTimeout(() => {
       let reply = "";
       if (workerId === "rajesh-kumar") {
@@ -275,7 +291,6 @@ export default function App() {
         return { ...prev, [workerId]: [...list, workerMsg] };
       });
 
-      // Update admin logs
       setAdminState(prev => {
         const newLiveOps = [
           {
@@ -294,7 +309,7 @@ export default function App() {
   };
 
   // 6. AI ESTIMATION TOOL
-  const [aiState, setAiState] = useState('upload'); // 'upload' | 'processing' | 'result'
+  const [aiState, setAiState] = useState('upload'); 
   
   const handleAiUpload = () => {
     setAiState('processing');
@@ -335,9 +350,9 @@ export default function App() {
   return (
     <React.Fragment>
       {/* Client Header */}
-      {activeView !== 'admin' && (
+      {location.pathname !== '/admin' && (
         <Header 
-          activeView={activeView}
+          activeView={location.pathname === '/' ? 'home' : location.pathname.substring(1)}
           setActiveView={changeRoute}
           currentLocation={currentLocation}
           setCurrentLocation={setCurrentLocation}
@@ -347,98 +362,82 @@ export default function App() {
 
       {/* Main Views Router */}
       <main id="app-container">
-        {activeView === 'home' && (
-          <LandingView 
-            workers={workers}
-            setActiveView={changeRoute}
-            setSearchFilters={setSearchFilters}
-            onOpenBookingWizard={(id, isEmergency) => {
-              setBookingWorkerId(id);
-              if (isEmergency) setWizardForm(prev => ({ ...prev, priority: 'Emergency' }));
-              setWizardStep(1);
-              setActiveModal('booking');
-            }}
-            onOpenAiTool={() => {
-              setAiState('upload');
-              setActiveModal('ai');
-            }}
-            onOpenPostJob={() => {
-              setPostJobForm({ title: "", category: "Electrical", location: "Sector 62, Noida", budget: "₹15,000", desc: "" });
-              setActiveModal('post-job');
-            }}
-          />
-        )}
+        <Routes>
+          <Route path="/" element={
+            <LandingView 
+              workers={workers}
+              setActiveView={changeRoute}
+              setSearchFilters={setSearchFilters}
+              onOpenBookingWizard={(id, isEmergency) => {
+                setBookingWorkerId(id);
+                if (isEmergency) setWizardForm(prev => ({ ...prev, priority: 'Emergency' }));
+                setWizardStep(1);
+                setActiveModal('booking');
+              }}
+              onOpenAiTool={() => {
+                setAiState('upload');
+                setActiveModal('ai');
+              }}
+              onOpenPostJob={() => {
+                setPostJobForm({ title: "", category: "Electrical", location: "Sector 62, Noida", budget: "₹15,000", desc: "" });
+                setActiveModal('post-job');
+              }}
+            />
+          } />
 
-        {activeView === 'search' && (
-          <SearchView 
-            workers={workers}
-            isLoading={isLoadingWorkers}
-            setActiveView={changeRoute}
-            searchFilters={searchFilters}
-            setSearchFilters={setSearchFilters}
-            comparisonList={comparisonList}
-            setComparisonList={setComparisonList}
-            onOpenComparison={() => setActiveModal('comparison')}
-          />
-        )}
+          <Route path="/search" element={
+            <SearchView 
+              workers={workers}
+              isLoading={isLoadingWorkers}
+              setActiveView={changeRoute}
+              searchFilters={searchFilters}
+              setSearchFilters={setSearchFilters}
+              comparisonList={comparisonList}
+              setComparisonList={setComparisonList}
+              onOpenComparison={() => setActiveModal('comparison')}
+            />
+          } />
 
-        {activeView === 'profile' && (
-          <ProfileView 
-            workerId={profileId}
-            workers={workers}
-            setActiveView={changeRoute}
-            onOpenBookingWizard={(id) => {
-              setBookingWorkerId(id);
-              setWizardStep(1);
-              setActiveModal('booking');
-            }}
-            onOpenChatSimulator={(id) => {
-              setChattingWorkerId(id);
-              // Init message log
-              if (!chatLogs[id]) {
-                const w = workers.find(item => item.id === id);
-                setChatLogs(prev => ({
-                  ...prev,
-                  [id]: [{ sender: 'worker', text: `Namaste! Thanks for reaching out. I'm ${w.name}, a professional ${w.specialty} specialist. How can I help you today?` }]
-                }));
-              }
-              setActiveModal('chat');
-            }}
-            onCallWorker={(name) => {
-              addToast(`Initiating secure direct call connection with ${name}...`, 'info');
-            }}
-          />
-        )}
+          <Route path="/profile/:id" element={
+            <ProfileViewWrapper 
+              workers={workers}
+              changeRoute={changeRoute}
+              setBookingWorkerId={setBookingWorkerId}
+              setWizardStep={setWizardStep}
+              setActiveModal={setActiveModal}
+              chatLogs={chatLogs}
+              setChatLogs={setChatLogs}
+              setChattingWorkerId={setChattingWorkerId}
+              addToast={addToast}
+            />
+          } />
 
-        {activeView === 'admin' && (
-          <AdminView 
-            adminState={adminState}
-            isLoading={isLoadingAdmin}
-            setActiveView={changeRoute}
-            onResolveIssue={handleResolveIssue}
-            onPostJob={() => {
-              setPostJobForm({ title: "", category: "Electrical", location: "Sector 62, Noida", budget: "₹15,000", desc: "" });
-              setActiveModal('post-job');
-            }}
-            onReviewProfiles={() => {
-              setSearchFilters({ text: "", category: "All", budget: 1000, rating: null, distance: 30 });
-              changeRoute('search');
-              addToast("Displaying all registered specialists awaiting review.", "info");
-            }}
-          />
-        )}
+          <Route path="/admin" element={
+            <AdminView 
+              adminState={adminState}
+              isLoading={isLoadingAdmin}
+              setActiveView={changeRoute}
+              onResolveIssue={handleResolveIssue}
+              onPostJob={() => {
+                setPostJobForm({ title: "", category: "Electrical", location: "Sector 62, Noida", budget: "₹15,000", desc: "" });
+                setActiveModal('post-job');
+              }}
+              onReviewProfiles={() => {
+                setSearchFilters({ text: "", category: "All", budget: 1000, rating: null, distance: 30 });
+                changeRoute('search');
+                addToast("Displaying all registered specialists awaiting review.", "info");
+              }}
+            />
+          } />
+        </Routes>
       </main>
 
       {/* Client Footer */}
-      {activeView !== 'admin' && (
+      {location.pathname !== '/admin' && (
         <Footer setActiveView={changeRoute} />
       )}
 
-      {/* ====================================================================
-          MODALS & OVERLAYS MANAGEMENT
-          ==================================================================== */}
-
-      {/* 1. LOGIN MODAL */}
+      {/* MODALS */}
       {activeModal === 'login' && (
         <div className="modal-backdrop active">
           <div className="modal-card">
@@ -468,13 +467,12 @@ export default function App() {
                   Login
                 </button>
               </form>
-              <p className="demo-notice">Note: Click Login to access the Indian Admin Portal.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. BOOKING WIZARD MODAL (CLOSED LOOP) */}
+      {/* 2. BOOKING WIZARD MODAL */}
       {activeModal === 'booking' && bookingWorkerId && (
         <div className="modal-backdrop active">
           <div className="modal-card wizard-card">
@@ -686,7 +684,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. CHAT MODAL SIMULATION */}
+      {/* 4. CHAT MODAL */}
       {activeModal === 'chat' && chattingWorkerId && (
         <div className="modal-backdrop active">
           <div className="modal-card chat-modal-card">
@@ -786,7 +784,7 @@ export default function App() {
                     onClick={() => {
                       setActiveModal(null);
                       setSearchFilters(prev => ({ ...prev, category: 'Masonry', text: 'Masonry' }));
-                      changeRoute('search');
+                      navigate('/search');
                     }}
                   >
                     Find Specialists for this Job
@@ -798,7 +796,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 6. SPECIALISTS SIDE-BY-SIDE COMPARISON MODAL */}
+      {/* 6. SPECIALISTS side-by-side comparison */}
       {activeModal === 'comparison' && (
         <div className="modal-backdrop active">
           <div className="modal-card comparison-large-card">
@@ -817,9 +815,9 @@ export default function App() {
                   const w = workers.find(item => item.id === id);
                   return (
                     <div key={id} className="comp-cell comp-worker-cell">
-                      <img src={w.image} className="comp-avatar" alt={w.name} />
-                      <span className="comp-value-bold">{w.name}</span>
-                      <span className="badge badge-verified" style={{ position: 'static' }}>{w.verified ? 'Verified' : 'Vetted'}</span>
+                      <img src={w?.image} className="comp-avatar" alt={w?.name} />
+                      <span className="comp-value-bold">{w?.name}</span>
+                      <span className="badge badge-verified" style={{ position: 'static' }}>{w?.verified ? 'Verified' : 'Vetted'}</span>
                     </div>
                   );
                 })}
@@ -836,7 +834,7 @@ export default function App() {
                   const w = workers.find(item => item.id === id);
                   return (
                     <div key={id} className="comp-cell" style={{ color: 'var(--color-accent)', fontWeight: 700 }}>
-                      ★ {w.rating} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', fontSize: '12px' }}>({w.reviewsCount} reviews)</span>
+                      ★ {w?.rating} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', fontSize: '12px' }}>({w?.reviewsCount} reviews)</span>
                     </div>
                   );
                 })}
@@ -862,13 +860,6 @@ export default function App() {
                   </div>
                 ))}
 
-                <div className="comp-cell comp-header-col">Tool Ownership</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell" style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                    {workers.find(item => item.id === id)?.equipment.substring(0, 60)}...
-                  </div>
-                ))}
-
                 <div className="comp-cell comp-header-col">Action</div>
                 {comparisonList.map(id => (
                   <div key={id} className="comp-cell">
@@ -891,19 +882,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ====================================================================
-          REACT TOAST ALERTS NOTIFIER
-          ==================================================================== */}
+      {/* TOASTS */}
       <div className="toast-container">
         {toasts.map(toast => (
           <div key={toast.id} className={`toast ${toast.type}`}>
-            {toast.type === 'success' ? (
-              <span>✓</span>
-            ) : (
-              <svg viewBox="0 0 24 24" width="16" height="16" style={{ fill: 'currentColor' }}>
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
-            )}
+            {toast.type === 'success' ? <span>✓</span> : <span style={{ marginRight: '6px' }}>⚠</span>}
             <span>{toast.message}</span>
           </div>
         ))}
