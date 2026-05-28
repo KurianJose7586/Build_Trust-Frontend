@@ -11,37 +11,75 @@ app = FastAPI(title="Build_Trust CRM API")
 # Enable CORS for the React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-dataverse_service = DataverseService()
+# Mock Data (copied from frontend mockData.js for convenience in development)
+MOCK_WORKERS = [
+    {
+        "id": "rajesh-kumar",
+        "name": "Rajesh Kumar",
+        "specialty": "Masonry",
+        "rating": 4.9,
+        "verified": True,
+        "location": "Greater Noida",
+    },
+    {
+        "id": "manish-sharma",
+        "name": "Manish Sharma",
+        "specialty": "Electrical",
+        "rating": 4.9,
+        "verified": True,
+        "location": "Delhi NCR",
+    }
+]
+
+# Initialize service only if credentials are provided
+DATAVERSE_CONFIGURED = all([
+    os.getenv("CLIENT_ID"),
+    os.getenv("CLIENT_SECRET"),
+    os.getenv("TENANT_ID"),
+    os.getenv("DATAVERSE_URL")
+])
+
+if DATAVERSE_CONFIGURED:
+    dataverse_service = DataverseService()
+else:
+    dataverse_service = None
+    print("WARNING: Dataverse credentials not found. Running in Mock Mode.")
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Build_Trust CRM API"}
+    return {
+        "message": "Welcome to Build_Trust CRM API",
+        "dataverse_status": "Connected" if DATAVERSE_CONFIGURED else "Mock Mode"
+    }
 
 @app.get("/api/workers")
 async def get_workers():
+    if not DATAVERSE_CONFIGURED:
+        return MOCK_WORKERS
+    
     try:
-        # Assuming there is a 'bt_specialists' table in Dataverse
-        # You'll need to adjust the table name based on your Dataverse schema
         data = await dataverse_service.get_data("bt_specialists")
-        return data
+        return data.get("value", [])
     except Exception as e:
-        # Fallback to mock data if Dataverse is not configured or fails
-        # In a real app, you might want to log this error
-        return {"error": str(e), "message": "Could not fetch from Dataverse. Check configuration."}
+        return {"error": str(e), "fallback": MOCK_WORKERS}
 
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
+    if not DATAVERSE_CONFIGURED:
+        print(f"MOCK: Received lead: {lead_data}")
+        return {"status": "success", "mode": "mock", "data": lead_data}
+    
     try:
         data = await dataverse_service.post_data("bt_leads", lead_data)
         return {"status": "success", "data": data}
     except Exception as e:
-        return {"error": str(e), "message": "Could not post lead to Dataverse."}
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
