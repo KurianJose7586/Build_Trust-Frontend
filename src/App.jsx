@@ -63,28 +63,56 @@ export default function App() {
   const [isLoadingWorkers, setIsLoadingWorkers] = useState(true);
   const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
 
+  // Filter conditions
+  const [searchFilters, setSearchFilters] = useState({
+    text: "",
+    category: "All",
+    budget: 1000,
+    rating: null,
+    distance: 15
+  });
+
   // FETCH WORKERS FROM BACKEND
-  useEffect(() => {
-    const fetchWorkers = async () => {
-      setIsLoadingWorkers(true);
-      try {
-        const response = await fetch('http://localhost:8000/api/workers');
-        const data = await response.json();
-        if (Array.isArray(data)) {
+  const fetchWorkers = async (filters = searchFilters, page = 1) => {
+    setIsLoadingWorkers(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: page,
+        limit: 20,
+        category: filters.category,
+        text: filters.text,
+        min_rating: filters.rating || 0,
+        max_rate: filters.budget || 1000000
+      });
+
+      const response = await fetch(`http://localhost:8000/api/workers?${queryParams.toString()}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        if (page === 1) {
           setWorkers(data);
         } else {
-          console.error("Malformed workers data:", data);
-          setWorkers(initialWorkers);
+          setWorkers(prev => [...prev, ...data]);
         }
-      } catch (err) {
-        console.error("Failed to fetch workers:", err);
-        setWorkers(initialWorkers);
-      } finally {
-        setIsLoadingWorkers(false);
+      } else {
+        console.error("Malformed workers data:", data);
+        if (page === 1) setWorkers(initialWorkers);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch workers:", err);
+      if (page === 1) setWorkers(initialWorkers);
+    } finally {
+      setIsLoadingWorkers(false);
+    }
+  };
+
+  useEffect(() => {
     fetchWorkers();
   }, []);
+
+  const applyFilters = (newFilters) => {
+    setSearchFilters(newFilters);
+    fetchWorkers(newFilters, 1);
+  };
 
   // FETCH ADMIN STATS FROM BACKEND
   useEffect(() => {
@@ -112,15 +140,6 @@ export default function App() {
   
   // Comparison lists
   const [comparisonList, setComparisonList] = useState([]);
-
-  // Filter conditions
-  const [searchFilters, setSearchFilters] = useState({
-    text: "",
-    category: "All",
-    budget: 1000,
-    rating: null,
-    distance: 15
-  });
 
   // Toasts notifications queue
   const [toasts, setToasts] = useState([]);
@@ -367,7 +386,7 @@ export default function App() {
             <LandingView 
               workers={workers}
               setActiveView={changeRoute}
-              setSearchFilters={setSearchFilters}
+              setSearchFilters={applyFilters}
               onOpenBookingWizard={(id, isEmergency) => {
                 setBookingWorkerId(id);
                 if (isEmergency) setWizardForm(prev => ({ ...prev, priority: 'Emergency' }));
@@ -391,10 +410,14 @@ export default function App() {
               isLoading={isLoadingWorkers}
               setActiveView={changeRoute}
               searchFilters={searchFilters}
-              setSearchFilters={setSearchFilters}
+              setSearchFilters={applyFilters}
               comparisonList={comparisonList}
               setComparisonList={setComparisonList}
               onOpenComparison={() => setActiveModal('comparison')}
+              onLoadMore={() => {
+                const nextPage = Math.floor(workers.length / 20) + 1;
+                fetchWorkers(searchFilters, nextPage);
+              }}
             />
           } />
 
@@ -423,7 +446,7 @@ export default function App() {
                 setActiveModal('post-job');
               }}
               onReviewProfiles={() => {
-                setSearchFilters({ text: "", category: "All", budget: 1000, rating: null, distance: 30 });
+                applyFilters({ text: "", category: "All", budget: 1000, rating: null, distance: 30 });
                 changeRoute('search');
                 addToast("Displaying all registered specialists awaiting review.", "info");
               }}
@@ -783,7 +806,7 @@ export default function App() {
                     className="btn btn-accent btn-full"
                     onClick={() => {
                       setActiveModal(null);
-                      setSearchFilters(prev => ({ ...prev, category: 'Masonry', text: 'Masonry' }));
+                      applyFilters({ ...searchFilters, category: 'Masonry', text: 'Masonry' });
                       navigate('/search');
                     }}
                   >

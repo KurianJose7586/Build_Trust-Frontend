@@ -34,24 +34,55 @@ async def root():
     }
 
 @app.get("/api/workers")
-async def get_workers():
+async def get_workers(
+    page: int = 1, 
+    limit: int = 20, 
+    category: str = "All", 
+    text: str = "",
+    min_rating: float = 0,
+    max_rate: int = 1000000
+):
     if not dataverse_service.configured:
-        return MOCK_WORKERS
+        # Filter mock data locally for dev
+        filtered = MOCK_WORKERS
+        if category != "All":
+            filtered = [w for w in filtered if w.get("specialty") == category]
+        return filtered[0:limit]
     
     try:
-        data = await dataverse_service.get_data("cr034_specialists")
+        # Build OData filter string
+        filters = []
+        if category != "All":
+            filters.append(f"cr034_specialty eq '{category}'")
+        if text:
+            filters.append(f"contains(cr034_name, '{text}')")
+        if min_rating > 0:
+            filters.append(f"cr034_rating ge {min_rating}")
+        if max_rate < 1000000:
+            filters.append(f"cr034_hourlyrate le {max_rate}")
+        
+        filter_str = " and ".join(filters)
+        
+        # OData Pagination parameters
+        skip = (page - 1) * limit
+        endpoint = f"cr034_specialists?$top={limit}&$skip={skip}"
+        if filter_str:
+            endpoint += f"&$filter={filter_str}"
+            
+        data = await dataverse_service.get_data(endpoint)
         workers = data.get("value", [])
         
         mapped_workers = []
         for w in workers:
             mapped_workers.append({
                 "id": w.get("cr034_specialistid"), 
-                "name": w.get("cr034_name"), # Lowercase
-                "specialty": w.get("cr034_specialty"), # Lowercase
-                "rate": w.get("cr034_hourlyrate"), # Lowercase
-                "rating": w.get("cr034_rating"), # Lowercase
-                "verified": w.get("cr034_verified"), # Lowercase
-                "location": "India" 
+                "name": w.get("cr034_name"),
+                "specialty": w.get("cr034_specialty"),
+                "rate": w.get("cr034_hourlyrate"),
+                "rating": w.get("cr034_rating"),
+                "verified": w.get("cr034_verified"),
+                "location": "India",
+                "tags": [w.get("cr034_specialty")] # Default tag
             })
         return mapped_workers
     except Exception as e:
