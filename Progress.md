@@ -1,28 +1,30 @@
 # Build_Trust Project Progress
 
-This document tracks the migration of the Build_Trust CRM from a static mock-up to a fully dynamic, MongoDB-integrated Enterprise application.
+This document tracks the migration of the Build_Trust CRM from a static mock-up to a fully dynamic, Dataverse-integrated Enterprise application.
 
-## 🚀 Current Status: **Backend Pivoted to MongoDB (Ready for Connection)**
+## 🚀 Current Status: **Back on Dataverse (Credentials Pending)**
 
 ---
 
 ## 🛠 Phase 1: Backend Foundation
 - [x] **Initialize Python FastAPI Backend**
   - [x] Set up directory structure
-  - [x] Create `requirements.txt` with core dependencies (FastAPI, Motor, Pandas)
-  - [x] Implement `MongoDB` connection logic
+  - [x] Create `requirements.txt` with core dependencies (FastAPI, MSAL, HTTPX)
+  - [x] Implement `DataverseService` (Auth + OData)
 - [x] **Development Environment**
-  - [x] Create `.env.example` with MongoDB connection strings
+  - [x] Create `.env.example` for secure configuration
   - [x] Create `run.bat` for local execution
+  - [x] Implement "Fallback Mode" for development without credentials
 
 ## 📊 Phase 2: Data Migration (The 100k Challenge)
 - [ ] **CSV Migration Engine**
   - [ ] Implement chunk-based reader for `Hire_Worker_CRM_Migration_Sample_100000.csv`
   - [ ] Build data cleaning logic (Email validation, Status mapping)
-  - [ ] Create MongoDB Bulk Insert service
+  - [ ] Create Dataverse Batch Upload service
 - [ ] **Validation & Quality Control**
   - [ ] Implement "Migration Batch" tracking
   - [ ] Handle `duplicate_flag` and quality issues reported in CSV
+
 
 ## 🔗 Phase 3: Frontend Integration (Dynamic Conversion)
 - [ ] **Data Sourcing**

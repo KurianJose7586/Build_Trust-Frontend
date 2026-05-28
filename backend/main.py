@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from app.db import connect_to_mongo, close_mongo_connection, get_database
+from app.services.dataverse_service import DataverseService
 
 load_dotenv()
 
@@ -17,64 +17,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup_db_client():
-    await connect_to_mongo()
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    await close_mongo_connection()
+dataverse_service = DataverseService()
 
 # Mock Data for fallback
-MOCK_ADMIN_STATS = {
-    "activeJobs": 124,
-    "pendingLeads": 42,
-    "completionRate": 80,
-    "onSchedule": 102,
-    "delayed": 22,
-    "unverifiedCount": 14,
-    "issuesCount": 2,
-}
+MOCK_WORKERS = [
+    {"id": "rajesh-kumar", "name": "Rajesh Kumar", "specialty": "Masonry", "rating": 4.9, "verified": True},
+    {"id": "manish-sharma", "name": "Manish Sharma", "specialty": "Electrical", "rating": 4.9, "verified": True}
+]
 
 @app.get("/")
 async def root():
-    db = get_database()
-    status = "Connected" if db is not None else "Disconnected"
     return {
         "message": "Welcome to Build_Trust CRM API",
-        "database": "MongoDB",
-        "status": status
+        "database": "Dataverse",
+        "status": "Configured" if dataverse_service.configured else "Credentials Missing"
     }
 
 @app.get("/api/workers")
 async def get_workers():
-    db = get_database()
-    if db is None:
-        return {"error": "Database not connected"}
+    if not dataverse_service.configured:
+        return MOCK_WORKERS
     
     try:
-        workers = await db.workers.find().to_list(100)
-        # Clean up Mongo's _id for JSON serializability
-        for w in workers:
-            w["_id"] = str(w["_id"])
-        return workers
+        data = await dataverse_service.get_data("bt_specialists")
+        return data.get("value", [])
     except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/admin/stats")
-async def get_admin_stats():
-    # For now, return mock or calculate from collections
-    return MOCK_ADMIN_STATS
+        return {"error": str(e), "fallback": MOCK_WORKERS}
 
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
-    db = get_database()
-    if db is None:
-        raise HTTPException(status_code=500, detail="Database not connected")
+    if not dataverse_service.configured:
+        return {"status": "mock_success", "data": lead_data}
     
     try:
-        result = await db.leads.insert_one(lead_data)
-        return {"status": "success", "id": str(result.inserted_id)}
+        data = await dataverse_service.post_data("bt_leads", lead_data)
+        return {"status": "success", "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
