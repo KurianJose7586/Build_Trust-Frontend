@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 from app.services.dataverse_service import DataverseService
+from app.services.ai.gemini_service import ai_service
 
 load_dotenv()
 
@@ -30,7 +31,8 @@ async def root():
     return {
         "message": "Welcome to Build_Trust CRM API",
         "database": "Dataverse",
-        "status": "Configured" if dataverse_service.configured else "Credentials Missing"
+        "status": "Configured" if dataverse_service.configured else "Credentials Missing",
+        "ai_status": "Active" if ai_service.configured else "Key Missing"
     }
 
 @app.get("/api/workers")
@@ -88,14 +90,26 @@ async def get_workers(
     except Exception as e:
         return {"error": str(e), "fallback": MOCK_WORKERS}
 
+@app.get("/api/admin/stats")
+async def get_admin_stats():
+    # Return mock or implement Dataverse aggregation
+    return {
+        "activeJobs": 124,
+        "pendingLeads": 42,
+        "completionRate": 80,
+        "onSchedule": 102,
+        "delayed": 22,
+        "unverifiedCount": 14,
+        "issuesCount": 2,
+        "liveOps": []
+    }
+
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
     if not dataverse_service.configured:
         return {"status": "mock_success", "data": lead_data}
     
     try:
-        # Map frontend lead fields to Dataverse cr034_lead table
-        # Assuming table exists or using a generic catch-all
         await dataverse_service.post_data("cr034_leads", lead_data)
         return {"status": "success"}
     except Exception as e:
@@ -107,7 +121,6 @@ async def create_job(job_data: dict):
         return {"status": "mock_success", "data": job_data}
     
     try:
-        # Prepare Dataverse payload
         dv_payload = {
             "cr034_name": f"Job: {job_data.get('workerName')}",
             "cr034_description": job_data.get("description"),
@@ -119,8 +132,16 @@ async def create_job(job_data: dict):
         await dataverse_service.post_data("cr034_jobs", dv_payload)
         return {"status": "success"}
     except Exception as e:
-        print(f"Job Creation Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ai/estimate")
+async def get_ai_estimate(project_data: dict):
+    description = project_data.get("description", "")
+    if not description:
+        raise HTTPException(status_code=400, detail="Description is required")
+    
+    estimate = await ai_service.get_cost_estimate(description)
+    return estimate
 
 if __name__ == "__main__":
     import uvicorn
