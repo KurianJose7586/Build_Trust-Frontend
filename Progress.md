@@ -38,22 +38,59 @@ This document tracks the migration of the Build_Trust CRM from a static mock-up 
 
 
 ## 🧠 Phase 4: Advanced Persistence & Logic
-- [ ] **Communication**
-  - [ ] Move Chat Logs from local state to Dataverse `bt_Messages`
-  - [ ] Replace hardcoded Chat auto-replies with backend logic
-- [ ] **Live Operations**
-  - [ ] Replace local "Live Ops" array with a real event stream/DB query
-  - [ ] Implement "Issue Resolution" persistence
-- [ ] **AI & Analytics**
-  - [ ] Create backend handler for "AI Cost Estimation"
-  - [ ] Generate dynamic SVG chart paths based on real revenue data
+- [ ] **Real-Time Communication (Chat)**
+  - [ ] Create `bt_Messages` table in Dataverse
+  - [ ] Implement `GET /api/chat/{workerId}` and `POST /api/chat`
+  - [ ] Replace hardcoded auto-replies with an AI Agent (Gemini-powered) that uses Specialist Profile data
+- [ ] **AI-Driven Operations**
+  - [ ] Create `bt_EstimationHistory` table
+  - [ ] Implement `POST /api/ai/estimate` using Gemini API for project analysis
+  - [ ] Persistence: Store every AI audit result for Admin review
+- [ ] **Live Operations & Audit**
+  - [ ] Create `bt_AuditLog` table to track all system events
+  - [ ] Hook into Lead/Job/Issue actions to auto-generate audit records
+  - [ ] Replace local "Live Ops" array with backend polling from `bt_AuditLog`
+- [ ] **Financial Analytics (Charts)**
+  - [ ] Create `bt_Payments` table (linked to Jobs)
+  - [ ] Implement aggregate revenue queries in FastAPI
+  - [ ] Frontend: Dynamically generate SVG chart paths from backend financial data
+- [ ] **Issue Management**
+  - [ ] Implement `PATCH /api/issues/{id}/resolve` to persist status changes in Dataverse
 
 ## 🔐 Phase 5: Security & Deployment
-- [ ] **Authentication**
+- [ ] **Authentication (Admin)**
   - [ ] Implement Microsoft SSO for Admin Portal
+- [ ] **Authentication (Customer - OTP System)**
+  - [ ] Implement `POST /api/auth/send-otp` (FastAPI)
+  - [ ] Implement `POST /api/auth/verify-otp` with JWT generation
+  - [ ] Create `bt_Customers` table in Dataverse to store user profiles
 - [ ] **Resilience**
   - [ ] Add global error boundaries for API failures
-  - [ ] Implement caching for Specialist data to improve performance
+
+## ⚡ Phase 6: Performance & Scalability (The 100k Optimization)
+- [x] **Backend Paging & Filtering**
+  - [x] Implement OData Pagination (`$top`, `$skip`) in FastAPI
+  - [x] Move worker search/filtering logic from Frontend to Dataverse ($filter)
+- [ ] **Caching & Compression**
+  - [ ] Implement In-memory (LRU) or Redis caching for frequent queries
+  - [ ] Enable Gzip response compression in FastAPI
+- [ ] **Frontend Optimization**
+  - [x] Implement Infinite Scroll or Windowed/Virtualized list for 100k records
+  - [ ] Use SWR/React-Query for background data revalidation
+
+## 🎨 Phase 7: UI/UX Polish & Modernization
+- [ ] **Navigation & Routing**
+  - [x] Migrate from manual hash-routing to `react-router-dom`
+  - [ ] Implement Breadcrumbs for deep specialist profiles
+- [ ] **Responsive Design**
+  - [x] Refactor Admin Sidebar to be collapsible on mobile
+  - [ ] Optimize Worker Cards for varying screen sizes (Tablets/Phones)
+- [ ] **Interaction & Feedback**
+  - [ ] Real "Drag & Drop" for AI Tool photo uploads
+  - [ ] Detailed success modals for Hires and Leads (showing Dataverse IDs)
+  - [x] Skeleton Loaders for Worker List and Admin Charts
+- [ ] **Comparison Experience**
+  - [ ] Add "Quick Info" hover cards to the bottom Comparison Drawer
 
 ---
 
