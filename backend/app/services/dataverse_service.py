@@ -52,6 +52,8 @@ class DataverseService:
         async with httpx.AsyncClient() as client:
             url = f"{self.resource.rstrip('/')}/api/data/v9.2/{endpoint}"
             response = await client.get(url, headers=headers)
+            if response.status_code >= 400:
+                print(f"DEBUG Error Response: {response.text}")
             response.raise_for_status()
             return response.json()
 
@@ -68,5 +70,8 @@ class DataverseService:
         async with httpx.AsyncClient() as client:
             url = f"{self.resource.rstrip('/')}/api/data/v9.2/{endpoint}"
             response = await client.post(url, headers=headers, json=data)
+            if response.status_code >= 400:
+                # This will help us see EXACTLY what Dataverse is complaining about
+                print(f"DEBUG Error Body: {response.text}")
             response.raise_for_status()
             return response.json() if response.status_code != 204 else None
