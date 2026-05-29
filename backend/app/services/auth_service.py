@@ -5,19 +5,23 @@ import datetime
 import resend
 from dotenv import load_dotenv
 
+# Ensure .env is loaded at module level
+load_dotenv()
+
 class AuthService:
     def __init__(self):
         # In-memory store for OTPs: { email: {code: "123456", expires: datetime} }
         self.otp_store = {}
         
-        load_dotenv() # Ensure .env is loaded here just in case
         self.secret_key = os.getenv("JWT_SECRET", "buildtrust_local_secret_2026")
         self.resend_key = os.getenv("RESEND_API_KEY")
         
         if self.resend_key:
             resend.api_key = self.resend_key
+            self.email_configured = True
             print("🚀 Resend Email Service: ONLINE")
         else:
+            self.email_configured = False
             print("⚠️ Resend Email Service: OFFLINE (Using Terminal Mock)")
 
     def generate_otp(self, email: str):
@@ -26,10 +30,11 @@ class AuthService:
         self.otp_store[email] = {"code": code, "expires": expiry}
         
         # REAL EMAILER: Send via Resend
-        if self.resend_key:
+        if self.email_configured:
             try:
+                # Free tier must use 'onboarding@resend.dev'
                 params = {
-                    "from": "onboarding@resend.dev", # Must use this exact email on free tier
+                    "from": "onboarding@resend.dev",
                     "to": email,
                     "subject": f"{code} is your Build_Trust verification code",
                     "html": f"""

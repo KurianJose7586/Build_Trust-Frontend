@@ -1,11 +1,14 @@
+from dotenv import load_dotenv
+import os
+
+# CRUCIAL: Load .env before any other imports to ensure services get credentials
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import os
-from dotenv import load_dotenv
 from app.services.dataverse_service import DataverseService
 from app.services.ai.openrouter_service import ai_service
-
-load_dotenv()
+from app.services.auth_service import auth_service
 
 app = FastAPI(title="Build_Trust CRM API")
 
@@ -29,10 +32,13 @@ MOCK_WORKERS = [
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to Build_Trust CRM API",
+        "message": "Build_Trust API is LIVE",
+        "port": 8001,
         "database": "Dataverse",
-        "status": "Configured" if dataverse_service.configured else "Credentials Missing",
-        "ai_status": "Active" if ai_service.configured else "Key Missing"
+        "dataverse_connected": dataverse_service.configured,
+        "ai_active": ai_service.configured,
+        "email_active": auth_service.email_configured,
+        "debug_route_available": "/api/admin/schema/{table_name}"
     }
 
 @app.get("/api/workers")
@@ -65,9 +71,8 @@ async def get_workers(
         
         filter_str = " and ".join(filters)
         
-        # OData Pagination parameters
-        skip = (page - 1) * limit
-        endpoint = f"cr034_specialists?$top={limit}&$skip={skip}"
+        # OData Pagination - Simplified to avoid $skip issues in some CRM environments
+        endpoint = f"cr034_specialists?$top={limit}"
         if filter_str:
             endpoint += f"&$filter={filter_str}"
             
@@ -76,15 +81,30 @@ async def get_workers(
         
         mapped_workers = []
         for w in workers:
+            # Assign a random-ish image based on specialty for realism
+            specialty = w.get("cr034_specialty", "General")
+            img_map = {
+                "Masonry": "/assets/images/worker_rajesh_kumar.png",
+                "Electrical": "/assets/images/worker_marcus_thorne.png",
+                "Welder": "/assets/images/worker_sarah_jenkins.png",
+                "Plumber": "/assets/images/worker_robert_chen.png"
+            }
+            default_img = "/assets/images/worker_rajesh_kumar.png"
+
             mapped_workers.append({
                 "id": w.get("cr034_specialistid"), 
                 "name": w.get("cr034_name"),
-                "specialty": w.get("cr034_specialty"),
-                "rate": w.get("cr034_hourlyrate"),
-                "rating": w.get("cr034_rating"),
-                "verified": w.get("cr034_verified"),
-                "location": "India",
-                "tags": [w.get("cr034_specialty")] # Default tag
+                "specialty": specialty,
+                "rate": w.get("cr034_hourlyrate") or 300,
+                "rating": w.get("cr034_rating") or 4.0,
+                "verified": w.get("cr034_verified") or False,
+                "location": "Noida, India",
+                "image": img_map.get(specialty, default_img),
+                "reviewsCount": 10 + (int(w.get("cr034_hourlyrate", 0)) % 50), # Simulated for now
+                "experience": 5 + (int(w.get("cr034_hourlyrate", 0)) % 10), # Simulated
+                "about": f"Professional {specialty} specialist with years of experience serving the Delhi NCR region.",
+                "tags": [specialty, "Verified"] if w.get("cr034_verified") else [specialty],
+                "equipment": "Standard professional toolset owned."
             })
         return mapped_workers
     except Exception as e:
@@ -119,20 +139,66 @@ async def create_lead(lead_data: dict):
 async def create_job(job_data: dict):
     if not dataverse_service.configured:
         return {"status": "mock_success", "data": job_data}
-    
+
     try:
+        # Map payload to the EXACT logical names discovered via the schema tool
         dv_payload = {
-            "cr034_name": f"Job: {job_data.get('workerName')}",
+            "cr034_specialist": job_data.get("workerName"),
             "cr034_description": job_data.get("description"),
             "cr034_address": job_data.get("address"),
-            "cr034_hours": job_data.get("hours"),
-            "cr034_totalcost": job_data.get("totalCost"),
-            "cr034_priority": job_data.get("priority")
+            "cr034_hours": int(job_data.get("hours", 0)),
+            "cr034_totalcost": float(job_data.get("totalCost", 0)),
+            "cr034_scheduleddate": job_data.get("date")
         }
+
         await dataverse_service.post_data("cr034_jobs", dv_payload)
         return {"status": "success"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error", 
+            "message": str(e),
+            "hint": "Ensure columns match the verified Job table schema."
+        }
+
+# --- CUSTOMER AUTHENTICATION (OTP FLOW) ---
+
+@app.post("/api/auth/send-otp")
+async def send_otp(request: dict):
+    email = request.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    auth_service.generate_otp(email)
+    return {"status": "success", "message": "OTP sent"}
+
+@app.post("/api/auth/verify-otp")
+async def verify_otp(request: dict):
+    email = request.get("email")
+    code = request.get("code")
+    
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="Email and code are required")
+    
+    success, result = auth_service.verify_otp(email, code)
+    
+    if not success:
+        return {"status": "error", "message": result}
+    
+    return {
+        "status": "success", 
+        "token": result, 
+        "user": {"email": email}
+    }
+
+@app.get("/api/admin/schema/{table_name}")
+async def get_table_schema(table_name: str):
+    if not dataverse_service.configured:
+        return {"error": "Not configured"}
+    try:
+        data = await dataverse_service.get_data(f"EntityDefinitions(LogicalName='{table_name}')/Attributes")
+        return {"columns": [attr.get("LogicalName") for attr in data.get("value", [])]}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/api/ai/estimate")
 async def get_ai_estimate(project_data: dict):
@@ -145,4 +211,5 @@ async def get_ai_estimate(project_data: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Use 8001 regardless of .env to avoid collision with Vite on 8000
+    uvicorn.run(app, host="0.0.0.0", port=8001)
