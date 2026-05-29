@@ -4,6 +4,15 @@ import os
 # CRUCIAL: Load .env before any other imports to ensure services get credentials
 load_dotenv()
 
+# DIAGNOSTICS: Check if keys are actually loaded
+print("--- ENV DIAGNOSTICS ---")
+print(f"Working Directory: {os.getcwd()}")
+# Print all keys that start with R or O to see if there are typos
+loaded_keys = [k for k in os.environ.keys() if k.startswith(('RESEND', 'OPEN', 'DATA'))]
+print(f"Detected Keys: {loaded_keys}")
+print(f"RESEND_API_KEY found: {'Yes' if os.getenv('RESEND_API_KEY') else 'No'}")
+print("-----------------------")
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.services.dataverse_service import DataverseService
@@ -168,8 +177,15 @@ async def send_otp(request: dict):
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
     
-    auth_service.generate_otp(email)
-    return {"status": "success", "message": "OTP sent"}
+    try:
+        auth_service.generate_otp(email)
+        return {"status": "success", "message": "OTP sent"}
+    except Exception as e:
+        # Check if it was a rate limit message
+        msg = str(e)
+        if "wait" in msg:
+            return {"status": "error", "message": msg}
+        raise HTTPException(status_code=500, detail=msg)
 
 @app.post("/api/auth/verify-otp")
 async def verify_otp(request: dict):

@@ -69,6 +69,7 @@ export default function App() {
   const [authStep, setAuthStep] = useState('email'); // 'email' or 'otp'
   const [authEmail, setAuthEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   // Filter conditions
   const [searchFilters, setSearchFilters] = useState({
@@ -78,6 +79,17 @@ export default function App() {
     rating: null,
     distance: 15
   });
+
+  // OTP Timer Effect
+  useEffect(() => {
+    let interval;
+    if (otpCooldown > 0) {
+      interval = setInterval(() => {
+        setOtpCooldown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpCooldown]);
 
   // FETCH WORKERS FROM BACKEND
   const fetchWorkers = async (filters = searchFilters, page = 1) => {
@@ -324,7 +336,10 @@ export default function App() {
       const data = await res.json();
       if (data.status === "success") {
         setAuthStep('otp');
-        addToast("OTP sent! Please check your terminal/inbox.");
+        setOtpCooldown(60); // Start 60s timer
+        addToast("OTP sent! Please check your inbox.");
+      } else {
+        addToast(data.message, "error");
       }
     } catch (err) {
       addToast("Failed to send OTP", "error");
@@ -344,11 +359,9 @@ export default function App() {
         setCurrentUser(data.user);
         addToast(`Welcome back, ${data.user.email}!`);
         
-        // If we were in the middle of a booking, stay on booking modal
-        // but switch back to confirmed state if needed
         if (bookingWorkerId) {
           setActiveModal('booking');
-          setWizardStep(3); // Go to confirmation step
+          setWizardStep(3); 
         } else {
           setActiveModal(null);
         }
@@ -584,10 +597,11 @@ export default function App() {
                   </div>
                   <button 
                     type="button" 
-                    className="btn btn-accent btn-full"
+                    className={`btn btn-accent btn-full ${otpCooldown > 0 ? 'disabled' : ''}`}
+                    disabled={otpCooldown > 0}
                     onClick={handleSendOtp}
                   >
-                    Send Secure Code
+                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Send Secure Code'}
                   </button>
                   <div style={{ marginTop: '20px', textAlign: 'center' }}>
                     <button 
@@ -598,7 +612,7 @@ export default function App() {
                         setCurrentUser({ email: 'admin@buildtrust.com', role: 'admin' });
                         changeRoute('admin');
                         setActiveModal(null);
-                        addToast("Bypassed to Admin Portal (Dev Mode)");
+                        addToast("Logged in as Administrator Vikram Singh!");
                       }}
                     >
                       Login as Admin (Vikram Singh)
@@ -608,7 +622,7 @@ export default function App() {
               ) : (
                 <div className="auth-form">
                   <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                    We've sent a 6-digit code to <strong>{authEmail}</strong>. Check your backend terminal for the code.
+                    We've sent a 6-digit code to <strong>{authEmail}</strong>.
                   </p>
                   <div className="form-group">
                     <label className="form-label">Enter 6-Digit Code</label>
@@ -629,8 +643,18 @@ export default function App() {
                     Verify & Continue
                   </button>
                   <button 
+                    className={`btn btn-text btn-full text-center ${otpCooldown > 0 ? 'disabled' : ''}`}
+                    disabled={otpCooldown > 0}
+                    style={{ marginTop: '10px', fontSize: '13px' }}
+                    onClick={() => {
+                      if (otpCooldown === 0) handleSendOtp();
+                    }}
+                  >
+                    {otpCooldown > 0 ? `Resend available in ${otpCooldown}s` : 'Resend Code'}
+                  </button>
+                  <button 
                     className="btn btn-text btn-full text-center" 
-                    style={{ marginTop: '10px' }}
+                    style={{ marginTop: '5px', fontSize: '13px', opacity: 0.7 }}
                     onClick={() => setAuthStep('email')}
                   >
                     Change Email

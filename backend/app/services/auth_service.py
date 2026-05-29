@@ -25,9 +25,17 @@ class AuthService:
             print("⚠️ Resend Email Service: OFFLINE (Using Terminal Mock)")
 
     def generate_otp(self, email: str):
+        # RATE LIMITING: Check if an OTP was sent recently (60s cooldown)
+        now = datetime.datetime.utcnow()
+        if email in self.otp_store:
+            last_sent = self.otp_store[email].get("sent_at")
+            if last_sent and (now - last_sent).total_seconds() < 60:
+                wait_time = 60 - int((now - last_sent).total_seconds())
+                raise Exception(f"Please wait {wait_time} seconds before requesting a new code.")
+
         code = str(random.randint(100000, 999999))
-        expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
-        self.otp_store[email] = {"code": code, "expires": expiry}
+        expiry = now + datetime.timedelta(minutes=10)
+        self.otp_store[email] = {"code": code, "expires": expiry, "sent_at": now}
         
         # REAL EMAILER: Send via Resend (Domain Verified!)
         if self.email_configured:
