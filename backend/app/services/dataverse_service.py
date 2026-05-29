@@ -75,3 +75,5 @@ class DataverseService:
                 print(f"DEBUG Error Body: {response.text}")
             response.raise_for_status()
             return response.json() if response.status_code != 204 else None
+
+dataverse_service = DataverseService()

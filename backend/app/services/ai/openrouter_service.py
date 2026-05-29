@@ -8,7 +8,7 @@ load_dotenv()
 class OpenRouterService:
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
-        self.model = "google/gemma-2-9b-it:free" # Using standard slug or user provided one
+        self.model = "google/gemma-4-31b-it:free" 
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
         
         if not self.api_key:
@@ -16,56 +16,43 @@ class OpenRouterService:
             return
         self.configured = True
 
-    async def get_cost_estimate(self, description: str):
+    async def get_chat_response(self, messages: list):
         if not self.configured:
-            return {
-                "trade": "General Labor",
-                "area": "Unknown",
-                "material_cost": 5000,
-                "labor_hours": 8,
-                "total_estimate": 10000,
-                "is_mock": True
-            }
+            return "AI Service is not configured. Please check your API key."
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "http://localhost:8000", # Required by OpenRouter
+            "HTTP-Referer": "https://buildtrust.me",
             "X-Title": "Build_Trust CRM",
             "Content-Type": "application/json"
         }
 
-        prompt = f"""
-        Analyze this construction/repair request for a project in India: "{description}"
-        
-        Provide a JSON response with exactly these keys:
-        - trade: (The specialty needed, e.g., 'Masonry', 'Electrical')
-        - area: (Estimated sq ft or quantity)
-        - material_cost: (Estimated cost in INR)
-        - labor_hours: (Estimated work hours)
-        - total_estimate: (Total material + labor in INR)
-        
-        Return ONLY the raw JSON object. No markdown, no intro.
-        """
-
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
+            "messages": messages
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             try:
                 response = await client.post(self.base_url, headers=headers, json=payload, timeout=30.0)
                 response.raise_for_status()
                 result = response.json()
-                
-                content = result['choices'][0]['message']['content']
-                # Cleanup potential markdown wrapper
-                clean_json = content.strip().replace('```json', '').replace('```', '')
-                return json.loads(clean_json)
+                return result['choices'][0]['message']['content']
             except Exception as e:
                 print(f"AI Service Error: {e}")
-                return {"error": "AI could not process the request"}
+                return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again in a moment."
+
+    async def get_cost_estimate(self, description: str):
+        # Legacy support for single-shot estimate if needed
+        messages = [
+            {"role": "system", "content": "Return ONLY a JSON object with trade, area, material_cost, labor_hours, total_estimate."},
+            {"role": "user", "content": f"Estimate for: {description}"}
+        ]
+        response_text = await self.get_chat_response(messages)
+        try:
+            clean_json = response_text.strip().replace('```json', '').replace('```', '')
+            return json.loads(clean_json)
+        except:
+            return {"error": "Could not parse AI response"}
 
 ai_service = OpenRouterService()
