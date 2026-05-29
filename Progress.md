@@ -73,7 +73,25 @@ This document tracks the migration of the Build_Trust CRM from a static mock-up 
 - [x] **Interaction & Feedback**
   - [x] Synchronized port 8001 backend architecture
 
+## 🤖 Phase 8: Premium Agentic AI Redesign (Conversational Flow)
+- [x] **Strict "One Question at a Time" Architecture**
+  - [x] Backend system prompt rewritten for aggressive JSON-only structure.
+  - [x] Robust backend regex/parsing to extract JSON and strip AI hallucinated preamble.
+- [x] **High-Fidelity Interactive UI**
+  - [x] Replaced static form with interactive Chat Interface ("Build_Trust Project Manager").
+  - [x] Dynamic progress bar updating based on scoping step.
+  - [x] Implement Option Chips for lightning-fast user replies. Text input auto-hides until requested.
+  - [x] Premium markdown rendering inside chat bubbles.
+- [x] **Dataverse Matchmaking Integration**
+  - [x] Agent maps scoped projects directly to real Dataverse specialists dynamically.
+  - [x] Fallback logic implemented to prevent 0-worker returns or `NaN` pricing bugs.
+- [x] **Rate Limiting & Security**
+  - [x] In-memory Sliding Window IP Rate Limiting (Max 15 AI chats / hour).
+  - [x] Graceful degradation: returns a polite chat message instead of an HTTP 429 crash.
+- [x] **Mandatory Pre-Estimate Gate**
+  - [x] Integrated Auth wall: AI scopes project completely for free, but requires Login/OTP to view final cost and worker matches.
+
 ---
 
 ## 🏁 Project Summary
-The Build_Trust marketplace has been transformed from a static UI demo into a **Production-Ready Enterprise Prototype**. It successfully demonstrates a modern tech stack (React + FastAPI + Dataverse) capable of handling massive datasets, real-time AI logic, and professional customer communication.
+The Build_Trust marketplace has been transformed from a static UI demo into a **Production-Ready Enterprise Prototype**. It successfully demonstrates a modern tech stack (React + FastAPI + Dataverse) capable of handling massive datasets, real-time interactive AI agents, and professional secure customer authentication.
