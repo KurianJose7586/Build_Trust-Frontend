@@ -137,16 +137,38 @@ async def get_workers(
 
 @app.get("/api/admin/stats")
 async def get_admin_stats():
-    # Return mock or implement Dataverse aggregation
-    return {
-        "activeJobs": 124,
-        "pendingLeads": 42,
-        "completionRate": 80,
-        "onSchedule": 102,
-        "delayed": 22,
-        "unverifiedCount": 14,
-        "issuesCount": 2,
-    }
+    if not dataverse_service.configured:
+        return {
+            "activeJobs": 124,
+            "pendingLeads": 42,
+            "completionRate": 80,
+            "onSchedule": 102,
+            "delayed": 22,
+            "unverifiedCount": 14,
+            "issuesCount": 2,
+        }
+    
+    try:
+        # Use OData aggregation or simple count queries
+        # For simplicity in this prototype, we'll fetch the top count of each
+        jobs_data = await dataverse_service.get_data("cr034_jobs?$count=true&$top=1")
+        leads_data = await dataverse_service.get_data("cr034_leads?$count=true&$top=1")
+        
+        active_jobs = jobs_data.get("@odata.count", 0)
+        pending_leads = leads_data.get("@odata.count", 0)
+
+        return {
+            "activeJobs": active_jobs,
+            "pendingLeads": pending_leads,
+            "completionRate": 88, # Hardcoded for now
+            "onSchedule": active_jobs,
+            "delayed": 0,
+            "unverifiedCount": 12,
+            "issuesCount": 1,
+        }
+    except Exception as e:
+        print(f"Stats Fetch Error: {e}")
+        return {"error": str(e)}
 
 @app.get("/api/admin/live-ops")
 async def get_live_ops():
