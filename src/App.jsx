@@ -63,6 +63,13 @@ export default function App() {
   const [isLoadingWorkers, setIsLoadingWorkers] = useState(true);
   const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
 
+  // AUTH STATE
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authStep, setAuthStep] = useState('email'); // 'email' or 'otp'
+  const [authEmail, setAuthEmail] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+
   // Filter conditions
   const [searchFilters, setSearchFilters] = useState({
     text: "",
@@ -85,7 +92,7 @@ export default function App() {
         max_rate: filters.budget || 1000000
       });
 
-      const response = await fetch(`http://localhost:8000/api/workers?${queryParams.toString()}`);
+      const response = await fetch(`http://localhost:8001/api/workers?${queryParams.toString()}`);
       const data = await response.json();
       if (Array.isArray(data)) {
         if (page === 1) {
@@ -119,7 +126,7 @@ export default function App() {
     const fetchAdminStats = async () => {
       setIsLoadingAdmin(true);
       try {
-        const response = await fetch('http://localhost:8000/api/admin/stats');
+        const response = await fetch('http://localhost:8001/api/admin/stats');
         const data = await response.json();
         if (data && !data.error) {
           setAdminState(prev => ({ ...prev, ...data }));
@@ -187,6 +194,14 @@ export default function App() {
   });
 
   const handleBookingConfirm = async () => {
+    // SECURITY CHECK: OPTION B (Mandatory Login)
+    if (!isLoggedIn) {
+      setAuthStep('email');
+      setActiveModal('login');
+      addToast("Please login to finalize your booking", "info");
+      return;
+    }
+
     const worker = workers.find(w => w.id === bookingWorkerId);
     if (!worker) return;
 
@@ -196,11 +211,12 @@ export default function App() {
       ...wizardForm,
       workerId: worker.id,
       workerName: worker.name,
-      totalCost: totalCost
+      totalCost: totalCost,
+      customerEmail: currentUser.email
     };
 
     try {
-      const response = await fetch('http://localhost:8000/api/jobs', {
+      const response = await fetch('http://localhost:8001/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingPayload)
@@ -253,7 +269,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/api/leads', {
+      const response = await fetch('http://localhost:8001/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(postJobForm)
@@ -293,7 +309,58 @@ export default function App() {
     }
   };
 
-  // 5. CHAT SIMULATOR HANDLERS
+  // 5. AUTH HANDLERS
+  const handleSendOtp = async () => {
+    if (!authEmail.includes("@")) {
+      addToast("Please enter a valid email address", "info");
+      return;
+    }
+    try {
+      const res = await fetch('http://localhost:8001/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setAuthStep('otp');
+        addToast("OTP sent! Please check your terminal/inbox.");
+      }
+    } catch (err) {
+      addToast("Failed to send OTP", "error");
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    try {
+      const res = await fetch('http://localhost:8001/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail, code: otpValue })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setIsLoggedIn(true);
+        setCurrentUser(data.user);
+        addToast(`Welcome back, ${data.user.email}!`);
+        
+        // If we were in the middle of a booking, stay on booking modal
+        // but switch back to confirmed state if needed
+        if (bookingWorkerId) {
+          setActiveModal('booking');
+          setWizardStep(3); // Go to confirmation step
+        } else {
+          setActiveModal(null);
+        }
+      } else {
+        addToast(data.message, "error");
+      }
+    } catch (err) {
+      addToast("Verification failed", "error");
+    }
+  };
+
+  // 6. CHAT SIMULATOR HANDLERS
   const [chatInput, setChatInput] = useState("");
 
   const handleSendChatMessage = () => {
@@ -350,7 +417,7 @@ export default function App() {
   const handleAiUpload = async () => {
     setAiState('processing');
     try {
-      const response = await fetch('http://localhost:8000/api/ai/estimate', {
+      const response = await fetch('http://localhost:8001/api/ai/estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: wizardForm.description }) 
@@ -403,7 +470,10 @@ export default function App() {
           setActiveView={changeRoute}
           currentLocation={currentLocation}
           setCurrentLocation={setCurrentLocation}
-          onOpenLogin={() => setActiveModal('login')}
+          onOpenLogin={() => {
+            setAuthStep('email');
+            setActiveModal('login');
+          }}
         />
       )}
 
@@ -488,36 +558,85 @@ export default function App() {
         <Footer setActiveView={changeRoute} />
       )}
 
-      {/* MODALS */}
+      {/* LOGIN / AUTH MODAL */}
       {activeModal === 'login' && (
         <div className="modal-backdrop active">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Login to Build_Trust</h3>
+              <h3>{authStep === 'email' ? 'Login or Create Account' : 'Verify Email'}</h3>
               <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
             </div>
             <div className="modal-body">
-              <form onSubmit={(e) => e.preventDefault()}>
-                <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <input type="email" className="form-input" defaultValue="admin@buildtrust.com" required />
+              {authStep === 'email' ? (
+                <div className="auth-form">
+                  <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                    Enter your email to receive a 6-digit secure login code.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <input 
+                      type="email" 
+                      className="form-input" 
+                      placeholder="name@example.com"
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-accent btn-full"
+                    onClick={handleSendOtp}
+                  >
+                    Send Secure Code
+                  </button>
+                  <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                    <button 
+                      className="btn btn-text" 
+                      style={{ fontSize: '12px' }}
+                      onClick={() => {
+                        setIsLoggedIn(true);
+                        setCurrentUser({ email: 'admin@buildtrust.com', role: 'admin' });
+                        changeRoute('admin');
+                        setActiveModal(null);
+                        addToast("Bypassed to Admin Portal (Dev Mode)");
+                      }}
+                    >
+                      Login as Admin (Vikram Singh)
+                    </button>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Password</label>
-                  <input type="password" className="form-input" defaultValue="password" required />
+              ) : (
+                <div className="auth-form">
+                  <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                    We've sent a 6-digit code to <strong>{authEmail}</strong>. Check your backend terminal for the code.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">Enter 6-Digit Code</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="000000"
+                      maxLength="6"
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-accent btn-full"
+                    onClick={handleVerifyOtp}
+                  >
+                    Verify & Continue
+                  </button>
+                  <button 
+                    className="btn btn-text btn-full text-center" 
+                    style={{ marginTop: '10px' }}
+                    onClick={() => setAuthStep('email')}
+                  >
+                    Change Email
+                  </button>
                 </div>
-                <button 
-                  type="button" 
-                  className="btn btn-accent btn-full"
-                  onClick={() => {
-                    setActiveModal(null);
-                    changeRoute('admin');
-                    addToast("Logged in as Administrator Vikram Singh!");
-                  }}
-                >
-                  Login
-                </button>
-              </form>
+              )}
             </div>
           </div>
         </div>
@@ -648,7 +767,9 @@ export default function App() {
                   </div>
                   <div className="wizard-footer">
                     <button className="btn btn-outline" style={{ color: 'var(--color-primary)', borderColor: '#cbd5e1' }} onClick={() => setWizardStep(2)}>&lt; Back</button>
-                    <button className="btn btn-accent btn-large" onClick={handleBookingConfirm}>Confirm Booking</button>
+                    <button className="btn btn-accent btn-large" onClick={handleBookingConfirm}>
+                      {isLoggedIn ? 'Confirm Booking' : 'Login to Confirm'}
+                    </button>
                   </div>
                 </div>
               )}
