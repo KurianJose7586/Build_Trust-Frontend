@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 from app.services.dataverse_service import DataverseService
-from app.services.ai.gemini_service import ai_service
+from app.services.ai.openrouter_service import ai_service
 
 load_dotenv()
 
