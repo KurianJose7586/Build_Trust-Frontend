@@ -29,12 +29,11 @@ class AuthService:
         expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
         self.otp_store[email] = {"code": code, "expires": expiry}
         
-        # REAL EMAILER: Send via Resend
+        # REAL EMAILER: Send via Resend (Domain Verified!)
         if self.email_configured:
             try:
-                # Now using your professional verified domain!
                 params = {
-                    "from": "Build_Trust <auth@kurianjose.me>", 
+                    "from": "Build_Trust <verify@kurianjose.me>", 
                     "to": email,
                     "subject": f"{code} is your Build_Trust verification code",
                     "html": f"""
