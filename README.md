@@ -18,21 +18,19 @@
 <br />
 
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES2024-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge)](.)
-[![Market](https://img.shields.io/badge/Market-India%20🇮🇳-FF9933?style=for-the-badge)](.)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge)](.)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com) 
+[![Dataverse](https://img.shields.io/badge/Database-Dataverse-0078D4?style=for-the-badge&logo=microsoft&logoColor=white)](.)
+[![Status](https://img.shields.io/badge/Status-Prototype%20Finalized-brightgreen?style=for-the-badge)](.)
 
 <br />
 
-> **Build_Trust** is a web-based marketplace connecting customers with verified contractors, masons & labour workers —
-> powered by AI pricing, escrow payments, and transparent lead management.
-> *Currently under active development. Core UI is live. Backend & integrations coming next.*
+> **Build_Trust** is a professional-grade marketplace connecting customers with verified contractors and labour workers —
+> powered by **Gemma AI** pricing, **Dataverse** enterprise storage, and **Resend** verified email authentication.
 
 <br />
 
-[🚧 In Development](#️-current-status) · [📖 Docs](#) · [🐛 Report Bug](#) · [✨ Request Feature](#)
+[🚧 Current Status](#-current-status) · [📖 Docs](#) · [🐛 Report Bug](#) · [✨ Request Feature](#)
 
 <br />
 
@@ -60,20 +58,18 @@
 
 ## 🚧 Current Status
 
-> **Build_Trust is in early-stage active development.**
-> The frontend shell is being built out. No backend, authentication, or live data integrations exist yet.
+> **Build_Trust has evolved into a fully functional prototype with a real Python backend and Dataverse integration.**
 
 | Area | Status | Notes |
 |---|---|---|
-| 🎨 Landing Page UI | ✅ In Progress | Core layout being built |
-| 🔍 Search / Finder View | ✅ In Progress | Wizard + sidebar filters |
-| 👤 Worker Profile View | ✅ In Progress | Profile + booking widget |
-| 📊 Admin Dashboard View | ✅ In Progress | Metrics, charts & map |
-| 🔐 Authentication | ❌ Not Started | Role-based login planned |
-| 🗄️ Backend / Database | ❌ Not Started | API layer planned |
-| 💳 Payments / Escrow | ❌ Not Started | Integration planned |
-| 🤖 AI Pricing Engine | ❌ Not Started | Planned for Phase 3 |
-| 📍 Map / Location | ❌ Not Started | Planned for Phase 2 |
+| 🎨 Landing Page UI | ✅ Complete | Professional layout with routing |
+| 🔍 Search / Finder View | ✅ Complete | Server-side filtering + 100k scale |
+| 👤 Worker Profile View | ✅ Complete | Dynamic profiles + deep linking |
+| 📊 Admin Dashboard View | ✅ Complete | Real-time Dataverse metrics & logs |
+| 🔐 Authentication | ✅ Complete | Secure Email OTP (Resend + JWT) |
+| 🗄️ Backend / Database | ✅ Complete | FastAPI + Dataverse (OData) |
+| 🤖 AI Pricing Engine | ✅ Complete | OpenRouter + Gemma-2-9b analysis |
+| 📍 Navigation | ✅ Complete | React Router + Breadcrumbs |
 
 ---
 
@@ -95,20 +91,18 @@ India's ₹20 lakh crore construction industry still runs on **word-of-mouth, mi
 
 ## ✨ What Build_Trust Offers
 
-*(Features below represent the full product vision. See [Roadmap](#️-roadmap) for what's built vs. planned.)*
-
 <table>
 <tr>
 <td width="50%">
 
-### 🤖 AI-Powered Pricing *(Planned)*
-Smart cost estimation based on location, work type, area (sq ft), and real-time market trends. Upload a photo — get an instant quote.
+### 🤖 AI-Powered Pricing
+Smart cost estimation based on location, work type, and real-time market trends via **Gemma-2-9b**. Includes a conversational, step-by-step interactive UI to accurately scope projects before estimation.
 
-### 🔒 Escrow Payment System *(Planned)*
-Funds held securely, released only upon work completion and customer sign-off. Zero payment risk for both parties.
+### 🏢 Enterprise Dataverse Storage
+Robust backend integrated with **Microsoft Dataverse**, handling 100,000+ legacy records with optimized OData querying, server-side filtering, and persistent job tracking.
 
-### 📍 Location-Based Booking *(Planned)*
-Find verified workers near you via map. Filter by skill, rating & real-time availability.
+### 🔐 Secure Passwordless Login
+A professional **OTP (One-Time Password)** system delivered via **Resend** using a verified custom domain (`kurianjose.me`), ensuring secure onboarding.
 
 ### 🏆 Worker Recognition Engine *(Planned)*
 Top Performer badges, verified tags, skill-based rankings — rewarding quality and building long-term trust.
@@ -116,8 +110,8 @@ Top Performer badges, verified tags, skill-based rankings — rewarding quality 
 </td>
 <td width="50%">
 
-### 📊 Lead Management Automation *(Planned)*
-End-to-end pipeline: Capture → Qualify → Assign → Follow-up → Convert → Review. Fully automated.
+### 📊 Real-Time Admin Portal
+A comprehensive command center for administrators featuring live operation event streams, Dataverse-backed metrics, and a mobile-responsive dashboard.
 
 ### 📋 Digital Contracts *(Planned)*
 Legally structured agreements generated between workers and customers in seconds.
@@ -158,10 +152,9 @@ Hindi and regional language support with a voice interface for low-literacy work
 - Real-time overview: active jobs, pending leads, revenue, worker availability
 - Labour assignment & availability tracking
 - Offers & combo packages (e.g., "Full House Construction", "Painting + Polishing")
-- AI-based pricing suggestions *(planned)*
+- AI-based pricing suggestions
 - Escrow payment management *(planned)*
 - Subscription plan management
-- Location-based booking with maps *(planned)*
 - Auto wage calculation (work type × hours × area in sq ft)
 
 </details>
@@ -188,52 +181,9 @@ Fully automated 6-stage pipeline:
 <summary><strong>🔷 Module 3 — Financial Analysis</strong></summary>
 <br/>
 
-- Cost estimation tools
+- AI Agent interactive cost estimation tools
 - Budget tracking & payment history
 - Revenue reports & profit insights
-
-</details>
-
-<details>
-<summary><strong>🔷 Module 4 — Customer Engagement & Feedback</strong></summary>
-<br/>
-
-- Rating & review system
-- Feedback forms & complaint handling
-- Push notifications (updates, offers, reminders)
-
-</details>
-
-<details>
-<summary><strong>🔷 Module 5 — Worker Review & Recognition</strong></summary>
-<br/>
-
-- Worker rating system
-- "Top Performer" badges
-- Verified worker tags
-- Skill-based ranking system
-
-</details>
-
-<details>
-<summary><strong>🔷 Module 6 — Performance Tracking & Analytics</strong></summary>
-<br/>
-
-- Job completion rate tracking
-- Worker efficiency scores
-- Customer satisfaction score (CSAT)
-- Peak demand & seasonal analysis
-
-</details>
-
-<details>
-<summary><strong>🔷 Module 7 — Integration & Accessibility</strong></summary>
-<br/>
-
-- CRM integration (future-ready architecture)
-- REST API & Webhooks support
-- Mobile-first responsive UI
-- Cross-platform accessibility
 
 </details>
 
@@ -242,32 +192,33 @@ Fully automated 6-stage pipeline:
 ## 🗂️ Project Structure
 
 ```
-Construction_workplace/              ← Root (name will update as project grows)
+Construction_workplace/
 │
 ├── index.html                       # Core HTML entry point
 ├── package.json                     # Project dependencies & scripts
 ├── vite.config.js                   # Vite build & dev configuration
+│
+├── backend/                         # FastAPI Python Backend
+│   ├── app/services/
+│   │   ├── ai/openrouter_service.py # Gemma AI Integration
+│   │   ├── auth_service.py          # Resend OTP Auth
+│   │   └── dataverse_service.py     # MSAL & OData DB connection
+│   ├── main.py                      # API Router (Port 8001)
+│   └── run.bat                      # Auto-setup and run script
 │
 └── src/
     ├── main.jsx                     # Application bootstrap & React root
     ├── App.jsx                      # Core routing, view selection & global state
     ├── index.css                    # Design system, CSS variables & layout resets
     │
-    ├── data/
-    │   └── mockData.js              # Mock workers, admin metrics & activity logs
-    │                                  (replaces real API during development)
-    │
     └── components/
-        ├── Header.jsx               # Premium nav bar — shared across all public views
+        ├── Header.jsx               # Premium nav bar
         ├── Footer.jsx               # Public site footer
-        ├── LandingView.jsx          # Homepage / landing page component
-        ├── SearchView.jsx           # Worker finder with wizard steps & sidebar filters
+        ├── LandingView.jsx          # Homepage / landing page
+        ├── SearchView.jsx           # Worker finder with 100k backend pagination
         ├── ProfileView.jsx          # Worker profile page with booking widget
-        └── AdminView.jsx            # Admin dashboard — metrics, charts & map overview
+        └── AdminView.jsx            # Admin dashboard with live Dataverse polling
 ```
-
-> 📌 **This structure is the starting foundation.**
-> Backend services, authentication, API layers, and many more components will be added in upcoming phases.
 
 ---
 
@@ -275,16 +226,13 @@ Construction_workplace/              ← Root (name will update as project grows
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| **Frontend Framework** | React 18 + JSX | Component-based UI |
-| **Build Tool** | Vite 5 | Fast dev server & optimized builds |
-| **Styling** | CSS Variables + Custom System | Themeable, scalable design |
-| **Routing & State** | React (App.jsx) | Client-side navigation & state |
-| **Dev Data** | mockData.js | Seed data while backend is pending |
-| **Auth** | *(Planned)* | Role-based access control |
-| **Backend / DB** | *(Planned)* | API, database, server logic |
-| **AI Pricing** | *(Planned)* | ML-based cost estimation |
-| **Maps** | *(Planned)* | Location-based worker discovery |
-| **Payments** | *(Planned)* | Escrow & secure transactions |
+| **Frontend Framework** | React 18 + Vite 5 | Fast component-based UI |
+| **Styling** | Vanilla CSS + Variables | Themeable, scalable premium design |
+| **Routing & State** | React Router DOM | Client-side navigation |
+| **Backend API** | Python 3.12 + FastAPI | High-performance server logic |
+| **Database** | Microsoft Dataverse | Enterprise cloud storage via OData |
+| **AI Layer** | OpenRouter (Gemma-2-9b) | Interactive Agentic AI for estimates |
+| **Authentication** | Resend SDK + JWT | Passwordless OTP login |
 
 ---
 
@@ -294,37 +242,25 @@ Construction_workplace/              ← Root (name will update as project grows
 
 ```bash
 node >= 18.x
-npm  >= 9.x
+python >= 3.10
 ```
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/TanushkaSrivastava/Build_Trust
+git clone https://github.com/KurianJose7586/Build_Trust
 
-# 2. Move into the project
-cd Build_Trust
+# 2. Setup Backend
+cd backend
+# Create .env based on .env.example
+./run.bat # Installs dependencies and starts server on port 8001
 
-# 3. Install dependencies
+# 3. Setup Frontend
+cd ..
 npm install
-
-# 4. Start local dev server
-npm run dev
-# → Opens at http://localhost:5173
+npm run dev # Starts Vite on port 8000
 ```
-
-### Available Scripts
-
-```bash
-npm run dev        # Start development server with hot reload
-npm run build      # Production build → outputs to /dist
-npm run preview    # Preview production build locally
-npm run lint       # Run ESLint across the codebase
-```
-
-> ⚠️ **Note:** All data is currently mocked via `mockData.js`.
-> No real API calls, authentication, or database connections exist yet.
 
 ---
 
@@ -335,8 +271,6 @@ npm run lint       # Run ESLint across the codebase
 | 🔴 **Admin** | Full platform | Manage workers, leads, payments, analytics |
 | 🔵 **Customer** | Customer portal | Search, book, track jobs, review workers |
 | 🟢 **Worker** | Worker portal | Manage profile, accept jobs, track earnings |
-
-> Role-based authentication system is **planned for Phase 2**.
 
 ---
 
@@ -376,41 +310,38 @@ Build_Trust Revenue Streams
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  PHASE 1 — Frontend Foundation  (NOW)
+  PHASE 1 — Frontend Foundation  (DONE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ✅  Project setup (Vite + React)
-  🔄  Landing page & core UI shell
-  🔄  Worker search with filters (SearchView)
-  🔄  Worker profile + booking widget (ProfileView)
-  🔄  Admin operational dashboard (AdminView)
-  🔄  Mock data layer (mockData.js)
+  ✅  Landing page & core UI shell
+  ✅  Worker search with filters (SearchView)
+  ✅  Worker profile + booking widget (ProfileView)
+  ✅  Admin operational dashboard (AdminView)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  PHASE 2 — Core Backend & Auth
+  PHASE 2 — Core Backend & Auth (DONE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🔮  Role-based authentication (Admin / Customer / Worker)
-  🔮  REST API layer
-  🔮  Database integration
-  🔮  Real-time lead management pipeline
-  🔮  Escrow payment integration
-  🔮  Worker onboarding & KYC flow
+  ✅  Role-based authentication (Admin / Customer)
+  ✅  FastAPI REST API layer
+  ✅  Dataverse Database integration
+  ✅  Real-time lead management pipeline
+  ✅  Secure OTP Login Gateway
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  PHASE 3 — Intelligence & Trust Layer
+  PHASE 3 — Intelligence & Trust Layer (DONE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🔮  AI cost estimator (image upload → quote)
-  🔮  Location-based map booking
-  🔮  Digital contract generation
+  ✅  Conversational AI Agent for cost estimates (Gemma)
+  ✅  Dynamic UI with interactive Question Chips
+  ✅  Real-time Dataverse Worker Matchmaking
+  ✅  IP Rate Limiting for AI interactions
   🔮  Job progress tracking with geo-tagged photos
-  🔮  Rating, review & recognition engine
+  🔮  Digital contract generation
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   PHASE 4 — Scale & Accessibility
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🔮  Multi-language support (Hindi + regional)
   🔮  Voice-based interaction for workers
-  🔮  CRM integration & API/Webhooks
-  🔮  Pro plan for contractor teams & firms
   🔮  Mobile app (iOS + Android)
 
 Legend:  ✅ Done   🔄 In Progress   🔮 Planned
@@ -431,7 +362,7 @@ Legend:  ✅ Done   🔄 In Progress   🔮 Planned
 
 ## 🤝 Contributing
 
-Build_Trust is in early development — ideas, feedback, and contributions are very welcome.
+Build_Trust is in active development — ideas, feedback, and contributions are very welcome.
 
 ```bash
 # 1. Fork this repo
@@ -453,7 +384,7 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) s
 
 <br />
 
-**Built with ❤️ for India's construction workers**
+**Built with ❤️ for India's construction workers and ecosystem.**
 
 ### *Every job booked. Every worker verified. Every payment secured.*
 ### *That's how we Build_Trust.*
@@ -462,6 +393,5 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) s
 
 [![Made in India](https://img.shields.io/badge/Made%20in-India%20🇮🇳-FF9933?style=flat-square)](.)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](.)
-[![Stars](https://img.shields.io/github/stars/your-username/Build_Trust?style=flat-square)](.)
 
 </div>

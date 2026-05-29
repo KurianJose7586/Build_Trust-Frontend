@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-dotenv
+msal
+httpx
+pydantic
+pydantic-settings
+pandas
+pyjwt
+resend

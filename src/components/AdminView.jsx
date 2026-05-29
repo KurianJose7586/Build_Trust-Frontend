@@ -1,15 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function AdminView({ 
   adminState, 
+  isLoading,
   setActiveView, 
   onResolveIssue, 
   onPostJob, 
   onReviewProfiles 
 }) {
   const [activeSubView, setActiveSubView] = useState('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [revenueToggle, setRevenueToggle] = useState('week'); // 'week' or 'month'
+  const [liveOps, setLiveOps] = useState([]);
+  const [isLiveOpsLoading, setIsLiveOpsLoading] = useState(true);
+
+  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+
+  // FETCH LIVE OPS FROM BACKEND
+  useEffect(() => {
+    const fetchLiveOps = async () => {
+      try {
+        const res = await fetch('http://localhost:8001/api/admin/live-ops');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setLiveOps(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch live ops", err);
+      } finally {
+        setIsLiveOpsLoading(false);
+      }
+    };
+    fetchLiveOps();
+    
+    // Poll every 30 seconds for new events
+    const interval = setInterval(fetchLiveOps, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleExport = () => {
     const event = new CustomEvent('show-toast', { detail: { message: "CSV report generated. Export process running in background...", type: 'info' } });
@@ -37,17 +65,22 @@ export default function AdminView({
 
   return (
     <div id="view-admin" className="app-view active-view admin-view">
-      <div className="admin-layout">
+      <div className={`admin-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Sidebar */}
         <aside className="admin-sidebar">
+          <button className="sidebar-toggle-btn" onClick={toggleSidebar}>
+            {isSidebarCollapsed ? '→' : '←'}
+          </button>
           <div className="admin-logo-box">
             <svg className="admin-logo-icon" viewBox="0 0 24 24" width="24" height="24">
               <path fill="currentColor" d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.3C.5 6.7.9 9.8 2.9 11.8c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.1z"/>
             </svg>
-            <div>
-              <h2>Build_Trust</h2>
-              <span className="sub-portal">ADMIN PORTAL</span>
-            </div>
+            {!isSidebarCollapsed && (
+              <div>
+                <h2>Build_Trust</h2>
+                <span className="sub-portal">ADMIN PORTAL</span>
+              </div>
+            )}
           </div>
 
           <nav className="admin-nav">
@@ -57,18 +90,23 @@ export default function AdminView({
                 className={`admin-nav-item ${activeSubView === sub ? 'active' : ''}`}
                 onClick={() => {
                   setActiveSubView(sub);
-                  // Trigger toast notification
                   const event = new CustomEvent('show-toast', { detail: { message: `Switched view to ${sub.toUpperCase()} panel.`, type: 'info' } });
                   window.dispatchEvent(event);
                 }}
+                title={isSidebarCollapsed ? sub.charAt(0).toUpperCase() + sub.slice(1) : ''}
               >
-                <span style={{ textTransform: 'capitalize' }}>{sub}</span>
+                <span className="nav-icon">{sub.charAt(0).toUpperCase()}</span>
+                {!isSidebarCollapsed && <span style={{ textTransform: 'capitalize' }}>{sub}</span>}
               </button>
             ))}
           </nav>
 
-          <button className="btn btn-accent btn-full post-job-btn-sidebar" onClick={onPostJob}>
-            + Post New Job
+          <button 
+            className={`btn btn-accent ${isSidebarCollapsed ? 'btn-icon' : 'btn-full post-job-btn-sidebar'}`} 
+            onClick={onPostJob}
+            title={isSidebarCollapsed ? 'Post New Job' : ''}
+          >
+            {isSidebarCollapsed ? '+' : '+ Post New Job'}
           </button>
 
           <div className="admin-user-profile">
@@ -119,34 +157,42 @@ export default function AdminView({
 
           {/* Metrics row */}
           <section className="admin-metrics-grid">
-            <div className="metric-card">
-              <div className="metric-header">
-                <span>Active Jobs</span>
-                <span className="metric-trend trend-up">▲ 8%</span>
-              </div>
-              <div className="metric-value">{adminState.activeJobs}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header">
-                <span>Pending Leads</span>
-                <span className="metric-trend trend-down">▼ 3%</span>
-              </div>
-              <div className="metric-value">{adminState.pendingLeads}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header">
-                <span>Total Revenue</span>
-                <span className="metric-trend trend-up">▲ 12%</span>
-              </div>
-              <div className="metric-value">₹8.2L</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header">
-                <span>Worker Pool</span>
-                <span className="metric-trend trend-up">▲ 5%</span>
-              </div>
-              <div className="metric-value">88%</div>
-            </div>
+            {isLoading ? (
+              [1, 2, 3, 4].map(i => (
+                <div key={i} className="metric-card skeleton skeleton-card" style={{ height: '100px' }}></div >
+              ))
+            ) : (
+              <>
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span>Active Jobs</span>
+                    <span className="metric-trend trend-up">▲ 8%</span>
+                  </div>
+                  <div className="metric-value">{adminState.activeJobs}</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span>Pending Leads</span>
+                    <span className="metric-trend trend-down">▼ 3%</span>
+                  </div>
+                  <div className="metric-value">{adminState.pendingLeads}</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span>Total Revenue</span>
+                    <span className="metric-trend trend-up">▲ 12%</span>
+                  </div>
+                  <div className="metric-value">₹8.2L</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span>Worker Pool</span>
+                    <span className="metric-trend trend-up">▲ 5%</span>
+                  </div>
+                  <div className="metric-value">88%</div>
+                </div>
+              </>
+            )}
           </section>
 
           {/* Revenue and Live feed panels */}
@@ -228,17 +274,25 @@ export default function AdminView({
                 </div>
               </div>
               <div className="live-feed-list">
-                {adminState.liveOps.map(op => (
-                  <div key={op.id} className="feed-item">
-                    <div className={`feed-icon-box ${op.color}`}>
-                      <span style={{ fontWeight: 'bold', color: 'white', fontSize: '11px' }}>{op.icon}</span>
+                {isLiveOpsLoading ? (
+                  [1, 2, 3].map(i => (
+                    <div key={i} className="feed-item skeleton skeleton-text" style={{ height: '40px', marginBottom: '10px' }}></div>
+                  ))
+                ) : liveOps.length === 0 ? (
+                  <div className="text-center" style={{ padding: '20px', color: 'var(--text-muted)' }}>No recent activity.</div>
+                ) : (
+                  liveOps.map(op => (
+                    <div key={op.id} className="feed-item">
+                      <div className={`feed-icon-box ${op.color}`}>
+                        <span style={{ fontWeight: 'bold', color: 'white', fontSize: '11px' }}>{op.icon}</span>
+                      </div>
+                      <div className="feed-body">
+                        <p>{op.text}</p>
+                        <span className="feed-time">{op.time}</span>
+                      </div>
                     </div>
-                    <div className="feed-body">
-                      <p>{op.text}</p>
-                      <span className="feed-time">{op.time}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </section>
