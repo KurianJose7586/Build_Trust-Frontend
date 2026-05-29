@@ -205,8 +205,50 @@ async def verify_otp(request: dict):
         "token": result, 
         "user": {"email": email}
     }
+# --- REAL CHAT SYSTEM (DATAVERSE PERSISTENT) ---
+
+@app.get("/api/chat/{worker_id}")
+async def get_chat_history(worker_id: str, customer_email: str):
+    if not dataverse_service.configured:
+        return []
+
+    try:
+        # Filter by both worker and customer to get the private thread
+        filter_str = f"cr034_workerid eq '{worker_id}' and cr034_customerid eq '{customer_email}'"
+        endpoint = f"cr034_messages?$filter={filter_str}&$orderby=createdon asc"
+
+        data = await dataverse_service.get_data(endpoint)
+        msgs = data.get("value", [])
+
+        return [{
+            "sender": m.get("cr034_sender"),
+            "text": m.get("cr034_content"),
+            "time": m.get("createdon")
+        } for m in msgs]
+    except Exception as e:
+        print(f"Chat Fetch Error: {e}")
+        return []
+
+@app.post("/api/chat")
+async def send_chat_message(msg_data: dict):
+    if not dataverse_service.configured:
+        return {"status": "mock_success"}
+
+    try:
+        dv_payload = {
+            "cr034_sender": msg_data.get("sender"),
+            "cr034_content": msg_data.get("text"),
+            "cr034_workerid": msg_data.get("workerId"),
+            "cr034_customerid": msg_data.get("customerEmail")
+        }
+        await dataverse_service.post_data("cr034_messages", dv_payload)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/schema/{table_name}")
+...
+
 async def get_table_schema(table_name: str):
     if not dataverse_service.configured:
         return {"error": "Not configured"}

@@ -19,9 +19,30 @@ function ProfileViewWrapper({
   chatLogs, 
   setChatLogs, 
   setChattingWorkerId, 
-  addToast 
+  addToast,
+  isLoggedIn,
+  currentUser
 }) {
   const { id } = useParams();
+
+  // FETCH CHAT HISTORY ON LOAD
+  useEffect(() => {
+    if (isLoggedIn && currentUser && id) {
+      const fetchChat = async () => {
+        try {
+          const res = await fetch(`http://localhost:8001/api/chat/${id}?customer_email=${currentUser.email}`);
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setChatLogs(prev => ({ ...prev, [id]: data }));
+          }
+        } catch (err) {
+          console.error("Chat fetch failed", err);
+        }
+      };
+      fetchChat();
+    }
+  }, [id, isLoggedIn, currentUser]);
+
   return (
     <ProfileView 
       workerId={id}
@@ -33,14 +54,12 @@ function ProfileViewWrapper({
         setActiveModal('booking');
       }}
       onOpenChatSimulator={(workerId) => {
-        setChattingWorkerId(workerId);
-        if (!chatLogs[workerId]) {
-          const w = workers.find(item => item.id === workerId);
-          setChatLogs(prev => ({
-            ...prev,
-            [workerId]: [{ sender: 'worker', text: `Namaste! Thanks for reaching out. I'm ${w?.name || 'Specialist'}, a professional ${w?.specialty || ''} specialist. How can I help you today?` }]
-          }));
+        if (!isLoggedIn) {
+          addToast("Please login to chat with specialists", "info");
+          setActiveModal('login');
+          return;
         }
+        setChattingWorkerId(workerId);
         setActiveModal('chat');
       }}
       onCallWorker={(name) => {
@@ -163,7 +182,7 @@ export default function App() {
   // Toasts notifications queue
   const [toasts, setToasts] = useState([]);
 
-  // Simulated Chat logs { workerId: [messages] }
+  // Persistent Chat logs { workerId: [messages] }
   const [chatLogs, setChatLogs] = useState({});
 
   // Navigation Sync
@@ -336,7 +355,7 @@ export default function App() {
       const data = await res.json();
       if (data.status === "success") {
         setAuthStep('otp');
-        setOtpCooldown(60); // Start 60s timer
+        setOtpCooldown(60); 
         addToast("OTP sent! Please check your inbox.");
       } else {
         addToast(data.message, "error");
@@ -373,54 +392,59 @@ export default function App() {
     }
   };
 
-  // 6. CHAT SIMULATOR HANDLERS
+  // 6. REAL CHAT HANDLERS
   const [chatInput, setChatInput] = useState("");
 
-  const handleSendChatMessage = () => {
-    if (chatInput.trim() === "") return;
+  const handleSendChatMessage = async () => {
+    if (chatInput.trim() === "" || !isLoggedIn) return;
     
     const workerId = chattingWorkerId;
-    const worker = workers.find(w => w.id === workerId);
-    if (!worker) return;
-
     const clientMsg = { sender: 'client', text: chatInput };
+    
+    // Optimistic UI update
     setChatLogs(prev => {
       const list = prev[workerId] || [];
       return { ...prev, [workerId]: [...list, clientMsg] };
     });
     setChatInput("");
 
-    setTimeout(() => {
-      let reply = "";
-      if (workerId === "rajesh-kumar") {
-        reply = "Thanks for the details. I own all the scaffolding and heavy concrete mixers. Let's arrange a time to look at the garden walls this weekend?";
-      } else if (workerId === "manish-sharma") {
-        reply = "Got it! Electrical rewiring requires a quick inspection of the main distribution boards. Does tomorrow afternoon work for a video call?";
-      } else {
-        reply = `Thank you! I will review these project specs and get back to you with a draft estimate.`;
-      }
-
-      const workerMsg = { sender: 'worker', text: reply };
-      setChatLogs(prev => {
-        const list = prev[workerId] || [];
-        return { ...prev, [workerId]: [...list, workerMsg] };
+    try {
+      await fetch('http://localhost:8001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workerId: workerId,
+          customerEmail: currentUser.email,
+          sender: 'client',
+          text: clientMsg.text
+        })
       });
 
-      setAdminState(prev => {
-        const newLiveOps = [
-          {
-            id: Date.now(),
-            text: `Message from ${worker.name}: "${reply.substring(0, 25)}..."`,
-            time: "Just now",
-            type: "lead",
-            icon: "★",
-            color: "blue-bg"
-          },
-          ...prev.liveOps
-        ];
-        return { ...prev, liveOps: newLiveOps };
-      });
-    }, 1200);
+      // Simulation: Auto-reply (Can later be replaced by an AI agent call)
+      setTimeout(async () => {
+        const replyText = "Thank you for the message! I've received your inquiry and will review the project specs shortly.";
+        const workerMsg = { sender: 'worker', text: replyText };
+        
+        await fetch('http://localhost:8001/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workerId: workerId,
+            customerEmail: currentUser.email,
+            sender: 'worker',
+            text: replyText
+          })
+        });
+
+        setChatLogs(prev => {
+          const list = prev[workerId] || [];
+          return { ...prev, [workerId]: [...list, workerMsg] };
+        });
+      }, 1000);
+
+    } catch (err) {
+      console.error("Chat persistence failed", err);
+    }
   };
 
   // 6. AI ESTIMATION TOOL
@@ -543,6 +567,8 @@ export default function App() {
               setChatLogs={setChatLogs}
               setChattingWorkerId={setChattingWorkerId}
               addToast={addToast}
+              isLoggedIn={isLoggedIn}
+              currentUser={currentUser}
             />
           } />
 
