@@ -32,9 +32,9 @@ class AuthService:
         # REAL EMAILER: Send via Resend
         if self.email_configured:
             try:
-                # Free tier must use 'onboarding@resend.dev'
+                # Now using your professional verified domain!
                 params = {
-                    "from": "onboarding@resend.dev",
+                    "from": "Build_Trust <auth@kurianjose.me>", 
                     "to": email,
                     "subject": f"{code} is your Build_Trust verification code",
                     "html": f"""
