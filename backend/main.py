@@ -1,23 +1,22 @@
 from dotenv import load_dotenv
 import os
+import json
 
 # CRUCIAL: Load .env before any other imports to ensure services get credentials
 load_dotenv()
 
-# DIAGNOSTICS: Check if keys are actually loaded
-print("--- ENV DIAGNOSTICS ---")
-print(f"Working Directory: {os.getcwd()}")
-# Print all keys that start with R or O to see if there are typos
-loaded_keys = [k for k in os.environ.keys() if k.startswith(('RESEND', 'OPEN', 'DATA'))]
-print(f"Detected Keys: {loaded_keys}")
-print(f"RESEND_API_KEY found: {'Yes' if os.getenv('RESEND_API_KEY') else 'No'}")
-print("-----------------------")
-
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from app.services.dataverse_service import DataverseService
+from app.services.dataverse_service import dataverse_service
 from app.services.ai.openrouter_service import ai_service
 from app.services.auth_service import auth_service
+import time
+from collections import defaultdict
+
+# Rate Limiting setup
+ai_rate_limits = defaultdict(list)
+RATE_LIMIT_MAX_REQUESTS = 15  # Limit per hour per IP
+RATE_LIMIT_WINDOW_SECONDS = 3600
 
 app = FastAPI(title="Build_Trust CRM API")
 
@@ -29,8 +28,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-dataverse_service = DataverseService()
 
 # Mock Data for fallback
 MOCK_WORKERS = [
@@ -53,7 +50,6 @@ async def root():
 async def log_event(text: str, event_type: str = "info", icon: str = "★", color: str = "blue-bg"):
     """Helper to log system events to Dataverse for the Admin Feed"""
     if not dataverse_service.configured:
-        print(f"MOCK EVENT: {text}")
         return
     try:
         payload = {
@@ -88,7 +84,8 @@ async def get_workers(
         if category != "All":
             filters.append(f"cr034_specialty eq '{category}'")
         if text:
-            filters.append(f"contains(cr034_name, '{text}')")
+            # Search in BOTH name and specialty using OData OR logic
+            filters.append(f"(contains(cr034_name, '{text}') or contains(cr034_specialty, '{text}'))")
         if min_rating > 0:
             filters.append(f"cr034_rating ge {min_rating}")
         if max_rate < 1000000:
@@ -96,7 +93,7 @@ async def get_workers(
         
         filter_str = " and ".join(filters)
         
-        # OData Pagination - Simplified to avoid $skip issues in some CRM environments
+        # OData Pagination
         endpoint = f"cr034_specialists?$top={limit}"
         if filter_str:
             endpoint += f"&$filter={filter_str}"
@@ -106,7 +103,6 @@ async def get_workers(
         
         mapped_workers = []
         for w in workers:
-            # Assign a random-ish image based on specialty for realism
             specialty = w.get("cr034_specialty", "General")
             img_map = {
                 "Masonry": "/assets/images/worker_rajesh_kumar.png",
@@ -125,8 +121,8 @@ async def get_workers(
                 "verified": w.get("cr034_verified") or False,
                 "location": "Noida, India",
                 "image": img_map.get(specialty, default_img),
-                "reviewsCount": 10 + (int(w.get("cr034_hourlyrate", 0)) % 50), # Simulated for now
-                "experience": 5 + (int(w.get("cr034_hourlyrate", 0)) % 10), # Simulated
+                "reviewsCount": 10 + (int(w.get("cr034_hourlyrate", 0)) % 50),
+                "experience": 5 + (int(w.get("cr034_hourlyrate", 0)) % 10),
                 "about": f"Professional {specialty} specialist with years of experience serving the Delhi NCR region.",
                 "tags": [specialty, "Verified"] if w.get("cr034_verified") else [specialty],
                 "equipment": "Standard professional toolset owned."
@@ -149,8 +145,6 @@ async def get_admin_stats():
         }
     
     try:
-        # Use OData aggregation or simple count queries
-        # For simplicity in this prototype, we'll fetch the top count of each
         jobs_data = await dataverse_service.get_data("cr034_jobs?$count=true&$top=1")
         leads_data = await dataverse_service.get_data("cr034_leads?$count=true&$top=1")
         
@@ -160,14 +154,13 @@ async def get_admin_stats():
         return {
             "activeJobs": active_jobs,
             "pendingLeads": pending_leads,
-            "completionRate": 88, # Hardcoded for now
+            "completionRate": 88, 
             "onSchedule": active_jobs,
             "delayed": 0,
             "unverifiedCount": 12,
             "issuesCount": 1,
         }
     except Exception as e:
-        print(f"Stats Fetch Error: {e}")
         return {"error": str(e)}
 
 @app.get("/api/admin/live-ops")
@@ -175,7 +168,6 @@ async def get_live_ops():
     if not dataverse_service.configured:
         return []
     try:
-        # Get latest 10 events
         data = await dataverse_service.get_data("cr034_auditlogs?$top=10&$orderby=createdon desc")
         events = data.get("value", [])
         return [{
@@ -214,7 +206,6 @@ async def create_job(job_data: dict):
         return {"status": "mock_success", "data": job_data}
 
     try:
-        # Map payload to the EXACT logical names discovered via the schema tool
         dv_payload = {
             "cr034_specialist": job_data.get("workerName"),
             "cr034_description": job_data.get("description"),
@@ -228,12 +219,9 @@ async def create_job(job_data: dict):
         await log_event(f"Hired: {job_data.get('workerName')} for {job_data.get('address')}", "job", "✓", "green-bg")
         return {"status": "success"}
     except Exception as e:
-        return {
-            "status": "error", 
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
-# --- CUSTOMER AUTHENTICATION (OTP FLOW) ---
+# --- CUSTOMER AUTHENTICATION ---
 
 @app.post("/api/auth/send-otp")
 async def send_otp(request: dict):
@@ -243,33 +231,26 @@ async def send_otp(request: dict):
     
     try:
         auth_service.generate_otp(email)
-        return {"status": "success", "message": "OTP sent"}
+        return {"status": "success"}
     except Exception as e:
-        msg = str(e)
-        if "wait" in msg:
-            return {"status": "error", "message": msg}
-        raise HTTPException(status_code=500, detail=msg)
+        if "wait" in str(e):
+            return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/verify-otp")
 async def verify_otp(request: dict):
     email = request.get("email")
     code = request.get("code")
-    
     if not email or not code:
-        raise HTTPException(status_code=400, detail="Email and code are required")
+        raise HTTPException(status_code=400, detail="Missing fields")
     
     success, result = auth_service.verify_otp(email, code)
-    
     if not success:
         return {"status": "error", "message": result}
     
-    return {
-        "status": "success", 
-        "token": result, 
-        "user": {"email": email}
-    }
+    return {"status": "success", "token": result, "user": {"email": email}}
 
-# --- REAL CHAT SYSTEM (DATAVERSE PERSISTENT) ---
+# --- REAL CHAT SYSTEM ---
 
 @app.get("/api/chat/{worker_id}")
 async def get_chat_history(worker_id: str, customer_email: str):
@@ -277,10 +258,8 @@ async def get_chat_history(worker_id: str, customer_email: str):
         return []
 
     try:
-        # Filter by both worker and customer to get the private thread
         filter_str = f"cr034_workerid eq '{worker_id}' and cr034_customerid eq '{customer_email}'"
         endpoint = f"cr034_messages?$filter={filter_str}&$orderby=createdon asc"
-
         data = await dataverse_service.get_data(endpoint)
         msgs = data.get("value", [])
 
@@ -289,8 +268,7 @@ async def get_chat_history(worker_id: str, customer_email: str):
             "text": m.get("cr034_content"),
             "time": m.get("createdon")
         } for m in msgs]
-    except Exception as e:
-        print(f"Chat Fetch Error: {e}")
+    except Exception:
         return []
 
 @app.post("/api/chat")
@@ -310,6 +288,127 @@ async def send_chat_message(msg_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- AGENTIC AI (CHIP-BASED ONE-QUESTION-AT-A-TIME) ---
+
+@app.post("/api/ai/agent")
+async def ai_agent_chat(request: Request, payload: dict):
+    # Rate Limiting
+    client_ip = request.client.host if request.client else "unknown"
+    current_time = time.time()
+    
+    ai_rate_limits[client_ip] = [t for t in ai_rate_limits[client_ip] if current_time - t < RATE_LIMIT_WINDOW_SECONDS]
+    
+    if len(ai_rate_limits[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+        return {
+            "status": "CHAT",
+            "message": "⚠️ **Rate Limit Exceeded**\n\nI'm so glad you're finding this helpful! To ensure fair usage for everyone, you've reached the limit for AI scoping right now. You can still browse all our specialists directly.",
+            "chips": ["Understood"]
+        }
+        
+    ai_rate_limits[client_ip].append(current_time)
+
+    history = payload.get("messages", [])
+    
+    system_content = (
+        "You are an expert Construction Project Manager in India scoping a user's project. "
+        "CRITICAL INSTRUCTION: You must respond ONLY with a valid JSON object. No conversational preamble. No markdown outside the JSON. "
+        "STRATEGY: Ask EXACTLY ONE question per turn. Provide 3-4 short option chips. Stop asking after 2-3 questions. "
+        "FORMAT 1 - Asking a question:\n"
+        "{\n"
+        '  "status": "QUESTION",\n'
+        '  "message": "Is this an indoor or outdoor project?",\n'
+        '  "chips": ["Indoor", "Outdoor", "Both"]\n'
+        "}\n\n"
+        "FORMAT 2 - Final Estimate (when you have enough info):\n"
+        "{\n"
+        '  "status": "READY",\n'
+        '  "trade": "Carpenter",\n'
+        '  "estimated_cost_inr": 2500,\n'
+        '  "summary": "Wooden sofa leg replacement."\n'
+        "}\n"
+    )
+    
+    # Filter out previous system messages to replace with the fresh strict one
+    clean_history = [m for m in history if m.get('role') != 'system']
+    clean_history.insert(0, {"role": "system", "content": system_content})
+    
+    ai_raw = await ai_service.get_chat_response(clean_history)
+    
+    try:
+        # Robust JSON Extraction
+        start = ai_raw.find("{")
+        end = ai_raw.rfind("}") + 1
+        if start == -1 or end == 0:
+            raise ValueError("No JSON block found")
+            
+        json_str = ai_raw[start:end]
+        data = json.loads(json_str)
+        
+        if data.get("status") == "READY":
+            trade = data.get("trade", "Contracting")
+            cost = data.get("estimated_cost_inr", 1500)
+            
+            # Ensure cost is a valid integer
+            try:
+                cost = int(cost)
+            except:
+                cost = 1500
+
+            # Specialist Matchmaking (Broadened filter for better matches)
+            # If trade is highly specific, we might get 0 results. Let's do a broader search.
+            filter_str = f"contains(cr034_specialty, '{trade}')"
+            endpoint = f"cr034_specialists?$top=5&$filter={filter_str}&$orderby=cr034_rating desc"
+            
+            dv_data = await dataverse_service.get_data(endpoint)
+            workers_list = dv_data.get("value", [])
+            
+            # Fallback if no exact trade match: just get top rated workers
+            if not workers_list:
+                endpoint = f"cr034_specialists?$top=3&$orderby=cr034_rating desc"
+                dv_data = await dataverse_service.get_data(endpoint)
+                workers_list = dv_data.get("value", [])
+            
+            mapped = []
+            for w in workers_list[:3]: # Ensure max 3
+                mapped.append({
+                    "id": w.get("cr034_specialistid"),
+                    "name": w.get("cr034_name"),
+                    "specialty": w.get("cr034_specialty", trade),
+                    "rate": int(float(w.get("cr034_hourlyrate") or 350)),
+                    "rating": w.get("cr034_rating") or 4.5,
+                    "image": "/assets/images/worker_rajesh_kumar.png"
+                })
+            
+            return {
+                "status": "READY",
+                "message": "Project scoped! Here is my assessment and some recommended specialists.",
+                "estimate": {
+                    "trade": trade,
+                    "estimated_cost_inr": cost,
+                    "summary": data.get("summary", "Project assessment complete.")
+                },
+                "specialists": mapped
+            }
+        else:
+            # Enforce fallbacks if AI misses required fields
+            return {
+                "status": "QUESTION",
+                "message": data.get("message", "Could you provide more details?"),
+                "chips": data.get("chips", ["Yes", "No", "Explain further"])
+            }
+            
+    except Exception as e:
+        print(f"AI Parse Error: {e} | Raw: {ai_raw}")
+        # Very resilient fallback: Try to extract a question from the raw text
+        sentences = ai_raw.split('?')
+        first_q = sentences[0] + '?' if len(sentences) > 1 else "Could you elaborate on that?"
+        
+        return {
+            "status": "QUESTION",
+            "message": first_q.replace('\n', ' ').strip()[:150], # Ensure it's short
+            "chips": ["Standard Repair", "Replacement", "Inspection needed"]
+        }
+
 @app.get("/api/admin/schema/{table_name}")
 async def get_table_schema(table_name: str):
     if not dataverse_service.configured:
@@ -320,16 +419,6 @@ async def get_table_schema(table_name: str):
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/api/ai/estimate")
-async def get_ai_estimate(project_data: dict):
-    description = project_data.get("description", "")
-    if not description:
-        raise HTTPException(status_code=400, detail="Description is required")
-    
-    estimate = await ai_service.get_cost_estimate(description)
-    return estimate
-
 if __name__ == "__main__":
     import uvicorn
-    # Use 8001 regardless of .env to avoid collision with Vite on 8000
     uvicorn.run(app, host="0.0.0.0", port=8001)

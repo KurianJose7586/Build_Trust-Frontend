@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LandingView from './components/LandingView';
@@ -104,10 +105,18 @@ export default function App() {
   const [aiInput, setAiInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiAuditResult, setAiAuditResult] = useState(null);
+  const [aiStep, setAiStep] = useState(1); // 1, 2, 3
+  const [aiChips, setAiChips] = useState([]);
+  const [showAiInput, setShowAiInput] = useState(false);
+  const [pendingAiResult, setPendingAiResult] = useState(null);
   const aiChatEndRef = useRef(null);
 
   const openAiTool = () => {
     setAiAuditResult(null);
+    setPendingAiResult(null);
+    setAiStep(1);
+    setAiChips([]);
+    setShowAiInput(false);
     setAiChatMessages([{ role: "assistant", content: "Namaste! I am the Build_Trust Project Manager. What kind of construction or repair work do you need today?" }]);
     setActiveModal('ai');
   };
@@ -243,7 +252,7 @@ export default function App() {
   });
 
   const handleBookingConfirm = async () => {
-    // SECURITY CHECK: OPTION B (Mandatory Login)
+    // SECURITY CHECK: MANDATORY LOGIN
     if (!isLoggedIn) {
       setAuthStep('email');
       setActiveModal('login');
@@ -438,7 +447,7 @@ export default function App() {
         })
       });
 
-      // Simulation: Auto-reply (Can later be replaced by an AI agent call)
+      // Simulation: Auto-reply
       setTimeout(async () => {
         const replyText = "Thank you for the message! I've received your inquiry and will review the project specs shortly.";
         const workerMsg = { sender: 'worker', text: replyText };
@@ -465,12 +474,17 @@ export default function App() {
     }
   };
 
-  // 6. AGENTIC AI CHAT
-  const handleAiChatSubmit = async (e) => {
+  // 6. AGENTIC AI CHAT (CHIP-BASED)
+  const handleAiChatSubmit = async (e, forcedInput = null) => {
     if (e) e.preventDefault();
-    if (!aiInput.trim() || isAiLoading) return;
+    const currentInput = forcedInput || aiInput;
+    if (!currentInput.trim() || isAiLoading) return;
 
-    const userMsg = { role: "user", content: aiInput };
+    // Reset UI state for next turn
+    setAiChips([]);
+    setShowAiInput(false);
+
+    const userMsg = { role: "user", content: currentInput };
     const newMessages = [...aiChatMessages, userMsg];
     setAiChatMessages(newMessages);
     setAiInput("");
@@ -486,13 +500,22 @@ export default function App() {
 
       if (data.status === "READY") {
         setAiAuditResult(data);
+        setAiStep(3);
+        setShowAiInput(true); // Always show at the end
+        setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+      } else if (data.status === "QUESTION") {
+        setAiStep(2);
+        setAiChips(data.chips || []);
         setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
       } else {
-        setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+        // Fallback for simple chat responses
+        setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message || "I'm not sure how to respond to that." }]);
+        setShowAiInput(true);
       }
     } catch (err) {
       console.error("AI Agent failed", err);
       setAiChatMessages(prev => [...prev, { role: "assistant", content: "I'm sorry, I encountered an error while analyzing your request. Please try again." }]);
+      setShowAiInput(true);
     } finally {
       setIsAiLoading(false);
     }
@@ -855,301 +878,141 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. POST A JOB MODAL */}
-      {activeModal === 'post-job' && (
-        <div className="modal-backdrop active">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Post a New Project Requirement</h3>
-              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={(e) => e.preventDefault()}>
-                <div className="form-group">
-                  <label className="form-label">Project Title</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Electrical rewiring for flat compound"
-                    value={postJobForm.title}
-                    onChange={(e) => setPostJobForm(prev => ({ ...prev, title: e.target.value }))}
-                    required 
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group flex-1">
-                    <label className="form-label">Trade Category Required</label>
-                    <select 
-                      className="form-select"
-                      value={postJobForm.category}
-                      onChange={(e) => setPostJobForm(prev => ({ ...prev, category: e.target.value }))}
-                    >
-                      <option value="Electrical">Electrical</option>
-                      <option value="Masonry">Masonry</option>
-                      <option value="Painting">Painting</option>
-                      <option value="Plumbing">Plumbing</option>
-                      <option value="Contracting">General Contractor</option>
-                    </select>
-                  </div>
-                  <div className="form-group flex-1">
-                    <label className="form-label">Location / City</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={postJobForm.location}
-                      onChange={(e) => setPostJobForm(prev => ({ ...prev, location: e.target.value }))}
-                      required 
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Estimated Budget</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. ₹25,000"
-                    value={postJobForm.budget}
-                    onChange={(e) => setPostJobForm(prev => ({ ...prev, budget: e.target.value }))}
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Detailed Project Description</label>
-                  <textarea 
-                    className="form-input" 
-                    rows="3" 
-                    placeholder="Explain the project scope and specifications..."
-                    value={postJobForm.desc}
-                    onChange={(e) => setPostJobForm(prev => ({ ...prev, desc: e.target.value }))}
-                    required
-                  />
-                </div>
-                <button type="button" className="btn btn-accent btn-full" onClick={handlePostJobConfirm}>
-                  Submit Project Lead
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. CHAT MODAL */}
-      {activeModal === 'chat' && chattingWorkerId && (
-        <div className="modal-backdrop active">
-          <div className="modal-card chat-modal-card">
-            <div className="modal-header">
-              <div className="chat-header-user">
-                <span className="status-indicator online"></span>
-                <div>
-                  <h3>{workers.find(w => w.id === chattingWorkerId)?.name}</h3>
-                  <p>{workers.find(w => w.id === chattingWorkerId)?.specialty} Specialist</p>
-                </div>
-              </div>
-              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
-            </div>
-            <div className="modal-body chat-body">
-              <div className="chat-messages">
-                {(chatLogs[chattingWorkerId] || []).map((msg, idx) => (
-                  <div key={idx} className={`chat-msg ${msg.sender}`}>
-                    {msg.text}
-                  </div>
-                ))}
-              </div>
-              <div className="chat-input-bar">
-                <input 
-                  type="text" 
-                  className="form-input flex-1"
-                  placeholder="Type a message..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                />
-                <button className="btn btn-accent" onClick={handleSendChatMessage}>
-                  <svg viewBox="0 0 24 24" width="16" height="16">
-                    <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 5. AGENTIC AI COST ESTIMATION TOOL MODAL */}
       {activeModal === 'ai' && (
         <div className="modal-backdrop active">
           <div className="modal-card ai-agent-modal">
-            <div className="modal-header">
-              <div className="flex-align">
-                <div className="ai-status-dot"></div>
-                <h3>Build_Trust Project Manager</h3>
+            <div className="ai-modal-header">
+              <div className="header-avatar-box">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="currentColor" d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.3C.5 6.7.9 9.8 2.9 11.8c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.1z"/>
+                </svg>
               </div>
-              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
+              <div className="header-info">
+                <div className="header-name">Build_Trust</div>
+                <div className="header-status">Online · responds instantly</div>
+              </div>
+              <button className="close-modal-btn" onClick={() => setActiveModal(null)} style={{ color: 'var(--color-text-secondary)' }}>&times;</button>
             </div>
-            <div className="modal-body ai-chat-container">
-              <div className="ai-chat-messages">
-                {aiChatMessages.map((msg, idx) => (
-                  <div key={idx} className={`ai-msg-bubble ${msg.role}`}>
-                    <div className="msg-content">{msg.content}</div>
-                  </div>
-                ))}
-                {isAiLoading && (
-                  <div className="ai-msg-bubble assistant">
-                    <div className="msg-content typing-indicator">
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
-                )}
-                
-                {aiAuditResult && (
-                  <div className="ai-result-integrated animate-fade">
-                    <div className="audit-card">
-                      <h4>🛠 Professional Project Audit</h4>
-                      <div className="audit-grid">
-                        <div className="audit-item"><span>Trade:</span> <strong>{aiAuditResult.estimate.trade}</strong></div>
-                        <div className="audit-item"><span>Est. Cost:</span> <strong>₹{aiAuditResult.estimate.estimated_cost_inr.toLocaleString()}</strong></div>
-                      </div>
-                      <p className="audit-summary">{aiAuditResult.estimate.summary}</p>
-                    </div>
 
-                    <div className="matchmaking-section">
-                      <h4>✅ Recommended Specialists</h4>
-                      <div className="ai-worker-grid">
-                        {aiAuditResult.specialists.map(w => (
-                          <div key={w.id} className="ai-worker-mini-card">
-                            <div className="mini-avatar" style={{ backgroundImage: `url('${w.image}')` }}></div>
-                            <div className="mini-info">
-                              <strong>{w.name}</strong>
-                              <span>★ {w.rating} • ₹{w.rate}/hr</span>
-                            </div>
-                            <button 
-                              className="btn btn-accent btn-small"
-                              onClick={() => {
-                                setActiveModal(null);
-                                navigate(`/profile/${w.id}`);
-                              }}
-                            >
-                              View
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={aiChatEndRef} />
+            <div className="ai-progress-wrap">
+              <div className="ai-progress-label">
+                <span>{aiStep === 3 ? "Step 3 of 3 — your estimate is ready" : `Step ${aiStep} of 3 — understanding your project`}</span>
+                <span>{aiStep === 1 ? '33%' : aiStep === 2 ? '66%' : '100%'}</span>
               </div>
+              <div className="ai-progress-track">
+                <div className="ai-progress-fill" style={{ width: aiStep === 1 ? '33%' : aiStep === 2 ? '66%' : '100%' }}></div>
+              </div>
+            </div>
 
-              {!aiAuditResult && (
-                <form className="ai-chat-input-area" onSubmit={handleAiChatSubmit}>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Describe your project..." 
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    disabled={isAiLoading}
-                  />
-                  <button type="submit" className="btn btn-accent" disabled={isAiLoading}>
-                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                  </button>
-                </form>
-              )}
+            <div className="ai-chat-body">
+              {aiChatMessages.map((msg, idx) => (
+                <div key={idx} className={`ai-msg-row ${msg.role}`}>
+                  {msg.role === 'assistant' && (
+                    <div className="ai-mini-avatar">
+                      <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.3C.5 6.7.9 9.8 2.9 11.8c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.1z"/></svg>
+                    </div>
+                  )}
+                  <div className={`ai-bubble ${msg.role}`}>
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                </div>
+              ))}
               
-              {aiAuditResult && (
-                <div className="ai-chat-footer" style={{ padding: '15px' }}>
-                  <button className="btn btn-text btn-full" onClick={openAiTool}>
-                    Scope Another Project
+              {isAiLoading && (
+                <div className="ai-msg-row assistant">
+                  <div className="ai-mini-avatar">...</div>
+                  <div className="ai-bubble agent typing-indicator">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              )}
+
+              {/* Option Chips Turn */}
+              {!isAiLoading && aiChips.length > 0 && (
+                <div className="ai-chip-container animate-fade">
+                  {aiChips.map((chip, cidx) => (
+                    <button 
+                      key={cidx} 
+                      className="ai-option-chip"
+                      onClick={() => handleAiChatSubmit(null, chip)}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                  <button 
+                    className="ai-option-chip something-else"
+                    onClick={() => setShowAiInput(true)}
+                  >
+                    Something else...
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. SPECIALISTS side-by-side comparison */}
-      {activeModal === 'comparison' && (
-        <div className="modal-backdrop active">
-          <div className="modal-card comparison-large-card">
-            <div className="modal-header">
-              <h3>Specialist Comparison</h3>
-              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div 
-                className="comparison-grid-table"
-                style={{ gridTemplateColumns: `180px repeat(${comparisonList.length}, 1fr)` }}
-              >
-                {/* Column 1: Header */}
-                <div className="comp-cell comp-header-col">Overview</div>
-                {comparisonList.map(id => {
-                  const w = workers.find(item => item.id === id);
-                  return (
-                    <div key={id} className="comp-cell comp-worker-cell">
-                      <img src={w?.image} className="comp-avatar" alt={w?.name} />
-                      <span className="comp-value-bold">{w?.name}</span>
-                      <span className="badge badge-verified" style={{ position: 'static' }}>{w?.verified ? 'Verified' : 'Vetted'}</span>
+              
+              {aiAuditResult && (
+                <div className="animate-fade">
+                  <div className="ai-estimate-card">
+                    <div className="ai-estimate-header">
+                       <svg viewBox="0 0 24 24" width="14" height="14" style={{ marginRight: '4px' }}><path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 3.98 2.53.47 3.3 1.25 3.3 2.23 0 1.14-1.2 1.94-3.05 1.94-2.11 0-2.85-.94-2.95-2.23H6.04c.1 1.97 1.55 3.19 3.46 3.66V21h3v-2.16c1.94-.39 3.51-1.49 3.51-3.66-.01-2.12-1.21-3.53-4.21-4.28z"/></svg>
+                       <span>Estimated cost range</span>
                     </div>
-                  );
-                })}
-
-                <div className="comp-cell comp-header-col">Specialty</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell" style={{ fontWeight: 600 }}>
-                    {workers.find(item => item.id === id)?.specialty}
-                  </div>
-                ))}
-
-                <div className="comp-cell comp-header-col">Ratings</div>
-                {comparisonList.map(id => {
-                  const w = workers.find(item => item.id === id);
-                  return (
-                    <div key={id} className="comp-cell" style={{ color: 'var(--color-accent)', fontWeight: 700 }}>
-                      ★ {w?.rating} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', fontSize: '12px' }}>({w?.reviewsCount} reviews)</span>
+                    <div className="ai-estimate-body">
+                      <div className="ai-estimate-range">₹{Math.floor((aiAuditResult.estimate.estimated_cost_inr || 0) * 0.8).toLocaleString()} – ₹{Math.ceil((aiAuditResult.estimate.estimated_cost_inr || 0) * 1.2).toLocaleString()}</div>
+                      <div className="ai-estimate-note">Based on local trade rates · Parts + labour · {currentLocation}</div>
                     </div>
-                  );
-                })}
-
-                <div className="comp-cell comp-header-col">Hourly Rate</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell comp-value-bold">
-                    ₹{workers.find(item => item.id === id)?.rate}/hr
                   </div>
-                ))}
 
-                <div className="comp-cell comp-header-col">Experience</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell">
-                    {workers.find(item => item.id === id)?.experience} Years
+                  <div className="ai-workers-label">{aiAuditResult.specialists.length} matches · sorted by rating</div>
+                  <div className="ai-worker-cards">
+                    {aiAuditResult.specialists.map(w => (
+                      <div key={w.id} className="ai-worker-card" onClick={() => { setActiveModal(null); navigate(`/profile/${w.id}`); }}>
+                        <div className="ai-worker-initials" style={{ 
+                          backgroundColor: w.name.includes('S') ? '#EEEDFE' : '#E1F5EE',
+                          color: w.name.includes('S') ? '#3C3489' : '#0F6E56'
+                        }}>
+                          {w.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div className="ai-worker-info">
+                          <div className="ai-worker-name">{w.name}</div>
+                          <div className="ai-worker-meta">{w.specialty} · 5+ yrs exp · NCR</div>
+                          <div className="ai-worker-stars">
+                            <svg viewBox="0 0 24 24" width="10" height="10" style={{ color: '#FF6B2B' }}><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                            {w.rating} · 10+ jobs
+                          </div>
+                        </div>
+                        <div className="ai-worker-price">₹{w.rate}<br/><span style={{ fontSize: '9px', fontWeight: 400, color: 'var(--color-text-secondary)' }}>est.</span></div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-
-                <div className="comp-cell comp-header-col">Service Area</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell">
-                    {workers.find(item => item.id === id)?.location}
+                  
+                  <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                    <button className="btn btn-text btn-small" onClick={() => handleAiChatSubmit(null, "Show more specialists")}>Suggest more workers</button>
                   </div>
-                ))}
-
-                <div className="comp-cell comp-header-col">Action</div>
-                {comparisonList.map(id => (
-                  <div key={id} className="comp-cell">
-                    <button 
-                      className="btn btn-accent btn-full"
-                      onClick={() => {
-                        setActiveModal(null);
-                        setBookingWorkerId(id);
-                        setWizardStep(1);
-                        setActiveModal('booking');
-                      }}
-                    >
-                      Book Now
-                    </button>
-                  </div>
-                ))}
-              </div>
+                </div>
+              )}
+              <div ref={aiChatEndRef} />
             </div>
+
+            {/* Input Area (Conditionally visible) */}
+            {(showAiInput || aiChatMessages.length === 1) && (
+              <form className="ai-input-area" onSubmit={handleAiChatSubmit}>
+                <input 
+                  className="ai-chat-input" 
+                  placeholder="Type your answer…" 
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  disabled={isAiLoading}
+                  autoFocus
+                />
+                <button type="submit" className="ai-send-btn" disabled={isAiLoading}>
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
