@@ -50,6 +50,22 @@ async def root():
         "debug_route_available": "/api/admin/schema/{table_name}"
     }
 
+async def log_event(text: str, event_type: str = "info", icon: str = "★", color: str = "blue-bg"):
+    """Helper to log system events to Dataverse for the Admin Feed"""
+    if not dataverse_service.configured:
+        print(f"MOCK EVENT: {text}")
+        return
+    try:
+        payload = {
+            "cr034_eventtext": text,
+            "cr034_eventtype": event_type,
+            "cr034_eventicon": icon,
+            "cr034_eventcolor": color
+        }
+        await dataverse_service.post_data("cr034_auditlogs", payload)
+    except Exception as e:
+        print(f"Audit Log Error: {e}")
+
 @app.get("/api/workers")
 async def get_workers(
     page: int = 1, 
@@ -130,8 +146,26 @@ async def get_admin_stats():
         "delayed": 22,
         "unverifiedCount": 14,
         "issuesCount": 2,
-        "liveOps": []
     }
+
+@app.get("/api/admin/live-ops")
+async def get_live_ops():
+    if not dataverse_service.configured:
+        return []
+    try:
+        # Get latest 10 events
+        data = await dataverse_service.get_data("cr034_auditlogs?$top=10&$orderby=createdon desc")
+        events = data.get("value", [])
+        return [{
+            "id": e.get("cr034_auditlogid"),
+            "text": e.get("cr034_eventtext"),
+            "time": "Just now", 
+            "type": e.get("cr034_eventtype"),
+            "icon": e.get("cr034_eventicon"),
+            "color": e.get("cr034_eventcolor")
+        } for e in events]
+    except Exception:
+        return []
 
 @app.post("/api/leads")
 async def create_lead(lead_data: dict):
@@ -139,7 +173,15 @@ async def create_lead(lead_data: dict):
         return {"status": "mock_success", "data": lead_data}
     
     try:
-        await dataverse_service.post_data("cr034_leads", lead_data)
+        dv_payload = {
+            "cr034_name": lead_data.get("title"),
+            "cr034_category": lead_data.get("category"),
+            "cr034_location": lead_data.get("location"),
+            "cr034_budget": str(lead_data.get("budget")),
+            "cr034_description": lead_data.get("desc")
+        }
+        await dataverse_service.post_data("cr034_leads", dv_payload)
+        await log_event(f"New Lead: {lead_data.get('title')}", "lead", "★", "blue-bg")
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -161,12 +203,12 @@ async def create_job(job_data: dict):
         }
 
         await dataverse_service.post_data("cr034_jobs", dv_payload)
+        await log_event(f"Hired: {job_data.get('workerName')} for {job_data.get('address')}", "job", "✓", "green-bg")
         return {"status": "success"}
     except Exception as e:
         return {
             "status": "error", 
-            "message": str(e),
-            "hint": "Ensure columns match the verified Job table schema."
+            "message": str(e)
         }
 
 # --- CUSTOMER AUTHENTICATION (OTP FLOW) ---
@@ -181,7 +223,6 @@ async def send_otp(request: dict):
         auth_service.generate_otp(email)
         return {"status": "success", "message": "OTP sent"}
     except Exception as e:
-        # Check if it was a rate limit message
         msg = str(e)
         if "wait" in msg:
             return {"status": "error", "message": msg}
@@ -205,6 +246,7 @@ async def verify_otp(request: dict):
         "token": result, 
         "user": {"email": email}
     }
+
 # --- REAL CHAT SYSTEM (DATAVERSE PERSISTENT) ---
 
 @app.get("/api/chat/{worker_id}")
@@ -247,8 +289,6 @@ async def send_chat_message(msg_data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/schema/{table_name}")
-...
-
 async def get_table_schema(table_name: str):
     if not dataverse_service.configured:
         return {"error": "Not configured"}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Breadcrumbs from './Breadcrumbs';
 
 export default function SearchView({ 
   workers, 
@@ -8,7 +9,8 @@ export default function SearchView({
   setSearchFilters, 
   comparisonList, 
   setComparisonList, 
-  onOpenComparison 
+  onOpenComparison,
+  onLoadMore
 }) {
   const [inputText, setInputText] = useState(searchFilters.text || "");
   const [budgetVal, setBudgetVal] = useState(searchFilters.budget || 1000);
@@ -45,31 +47,9 @@ export default function SearchView({
     });
   };
 
-  // Filter list of workers
-  const filteredWorkers = workers.filter(worker => {
-    // Category check
-    if (searchFilters.category !== "All" && worker.specialty !== searchFilters.category) return false;
-    
-    // Text search
-    if (searchFilters.text) {
-      const q = searchFilters.text.toLowerCase();
-      const inName = (worker.name || "").toLowerCase().includes(q);
-      const inTag = (worker.tags || []).some(t => t.toLowerCase().includes(q));
-      const inSpec = (worker.specialty || "").toLowerCase().includes(q);
-      if (!inName && !inTag && !inSpec) return false;
-    }
-
-    // Budget limit in INR
-    if (worker.rate > searchFilters.budget) return false;
-
-    // Rating check
-    if (searchFilters.rating && worker.rating < searchFilters.rating) return false;
-
-    // Distance check (km)
-    if (worker.distance > searchFilters.distance) return false;
-
-    return true;
-  });
+  // The filtering logic is now handled in the backend for workers prop, 
+  // but we keep this for any remaining mock data behavior if needed.
+  const filteredWorkers = workers;
 
   const handleCompareChange = (workerId, checked) => {
     if (checked) {
@@ -87,6 +67,8 @@ export default function SearchView({
 
   return (
     <section id="view-search" className="app-view active-view">
+      <Breadcrumbs paths={[{ label: "Search Specialists", active: true }]} />
+      
       {/* Progress Bar Tracker */}
       <div className="progress-bar-container">
         <div className="container progress-steps">
@@ -199,7 +181,7 @@ export default function SearchView({
           </div>
 
           <div className="worker-list">
-            {isLoading ? (
+            {isLoading && workers.length === 0 ? (
               // SKELETON LOADERS
               [1, 2, 3].map(i => (
                 <div key={i} className="worker-row-card">
@@ -217,59 +199,66 @@ export default function SearchView({
                 No specialists found matching your filter criteria. Try expanding your search.
               </div>
             ) : (
-              filteredWorkers.map(worker => (
-                <div key={worker.id} className="worker-row-card">
-                  <div 
-                    className="worker-row-avatar" 
-                    style={{ backgroundImage: `url('${worker.image}')` }}
-                  ></div>
-                  <div className="worker-row-info">
-                    <div className="worker-info-header">
-                      <div className="worker-title-box">
-                        <h3 
-                          onClick={() => {
-                            window.location.hash = `#profile/${worker.id}`;
-                            setActiveView(`profile/${worker.id}`);
-                          }}
-                        >
-                          {worker.name} {worker.verified && <span className="verified-icon">✓</span>}
-                        </h3>
-                        <div className="worker-skills-tags">
-                          {(worker.tags || []).map(t => <span key={t} className="tag-badge">{t}</span>)}
+              <>
+                {filteredWorkers.map(worker => (
+                  <div key={worker.id} className="worker-row-card">
+                    <div 
+                      className="worker-row-avatar" 
+                      style={{ backgroundImage: `url('${worker.image}')` }}
+                    ></div>
+                    <div className="worker-row-info">
+                      <div className="worker-info-header">
+                        <div className="worker-title-box">
+                          <h3 
+                            onClick={() => {
+                              setActiveView(`profile/${worker.id}`);
+                            }}
+                          >
+                            {worker.name} {worker.verified && <span className="verified-icon">✓</span>}
+                          </h3>
+                          <div className="worker-skills-tags">
+                            {(worker.tags || []).map(t => <span key={t} className="tag-badge">{t}</span>)}
+                          </div>
+                        </div>
+                        <div className="worker-row-rating">
+                          ★ {worker.rating} <span className="worker-reviews-lbl">({worker.reviewsCount} reviews)</span>
                         </div>
                       </div>
-                      <div className="worker-row-rating">
-                        ★ {worker.rating} <span className="worker-reviews-lbl">({worker.reviewsCount} reviews)</span>
-                      </div>
-                    </div>
-                    <p className="worker-desc">{worker.about}</p>
-                    
-                    <div className="worker-row-footer">
-                      <div className="worker-row-price">₹{worker.rate}<span>/hr</span></div>
-                      <div className="flex-align" style={{ gap: '16px' }}>
-                        <label className="checkbox-container" style={{ marginBottom: 0 }}>
-                          <input 
-                            type="checkbox"
-                            checked={comparisonList.includes(worker.id)}
-                            onChange={(e) => handleCompareChange(worker.id, e.target.checked)}
-                          />
-                          <span className="checkmark"></span>
-                          Add to Comparison
-                        </label>
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => {
-                            window.location.hash = `#profile/${worker.id}`;
-                            setActiveView(`profile/${worker.id}`);
-                          }}
-                        >
-                          View Profile
-                        </button>
+                      <p className="worker-desc">{worker.about}</p>
+                      
+                      <div className="worker-row-footer">
+                        <div className="worker-row-price">₹{worker.rate}<span>/hr</span></div>
+                        <div className="flex-align" style={{ gap: '16px' }}>
+                          <label className="checkbox-container" style={{ marginBottom: 0 }}>
+                            <input 
+                              type="checkbox"
+                              checked={comparisonList.includes(worker.id)}
+                              onChange={(e) => handleCompareChange(worker.id, e.target.checked)}
+                            />
+                            <span className="checkmark"></span>
+                            Add to Comparison
+                          </label>
+                          <button 
+                            className="btn btn-primary"
+                            onClick={() => {
+                              setActiveView(`profile/${worker.id}`);
+                            }}
+                          >
+                            View Profile
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))}
+                
+                {/* Pagination Trigger */}
+                <div className="pagination-box" style={{ padding: '20px 0', textAlign: 'center' }}>
+                    <button className="btn btn-outline" onClick={onLoadMore} disabled={isLoading}>
+                        {isLoading ? 'Loading...' : 'Load More Specialists'}
+                    </button>
                 </div>
-              ))
+              </>
             )}
           </div>
         </main>

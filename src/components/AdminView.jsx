@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function AdminView({ 
   adminState, 
@@ -12,8 +12,32 @@ export default function AdminView({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [revenueToggle, setRevenueToggle] = useState('week'); // 'week' or 'month'
+  const [liveOps, setLiveOps] = useState([]);
+  const [isLiveOpsLoading, setIsLiveOpsLoading] = useState(true);
 
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+
+  // FETCH LIVE OPS FROM BACKEND
+  useEffect(() => {
+    const fetchLiveOps = async () => {
+      try {
+        const res = await fetch('http://localhost:8001/api/admin/live-ops');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setLiveOps(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch live ops", err);
+      } finally {
+        setIsLiveOpsLoading(false);
+      }
+    };
+    fetchLiveOps();
+    
+    // Poll every 30 seconds for new events
+    const interval = setInterval(fetchLiveOps, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleExport = () => {
     const event = new CustomEvent('show-toast', { detail: { message: "CSV report generated. Export process running in background...", type: 'info' } });
@@ -250,17 +274,25 @@ export default function AdminView({
                 </div>
               </div>
               <div className="live-feed-list">
-                {adminState.liveOps.map(op => (
-                  <div key={op.id} className="feed-item">
-                    <div className={`feed-icon-box ${op.color}`}>
-                      <span style={{ fontWeight: 'bold', color: 'white', fontSize: '11px' }}>{op.icon}</span>
+                {isLiveOpsLoading ? (
+                  [1, 2, 3].map(i => (
+                    <div key={i} className="feed-item skeleton skeleton-text" style={{ height: '40px', marginBottom: '10px' }}></div>
+                  ))
+                ) : liveOps.length === 0 ? (
+                  <div className="text-center" style={{ padding: '20px', color: 'var(--text-muted)' }}>No recent activity.</div>
+                ) : (
+                  liveOps.map(op => (
+                    <div key={op.id} className="feed-item">
+                      <div className={`feed-icon-box ${op.color}`}>
+                        <span style={{ fontWeight: 'bold', color: 'white', fontSize: '11px' }}>{op.icon}</span>
+                      </div>
+                      <div className="feed-body">
+                        <p>{op.text}</p>
+                        <span className="feed-time">{op.time}</span>
+                      </div>
                     </div>
-                    <div className="feed-body">
-                      <p>{op.text}</p>
-                      <span className="feed-time">{op.time}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </section>
