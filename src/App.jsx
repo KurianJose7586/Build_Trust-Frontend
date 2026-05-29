@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -99,6 +99,19 @@ export default function App() {
     distance: 15
   });
 
+  // AGENTIC AI STATE
+  const [aiChatMessages, setAiChatMessages] = useState([]);
+  const [aiInput, setAiInput] = useState("");
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiAuditResult, setAiAuditResult] = useState(null);
+  const aiChatEndRef = useRef(null);
+
+  const openAiTool = () => {
+    setAiAuditResult(null);
+    setAiChatMessages([{ role: "assistant", content: "Namaste! I am the Build_Trust Project Manager. What kind of construction or repair work do you need today?" }]);
+    setActiveModal('ai');
+  };
+
   // OTP Timer Effect
   useEffect(() => {
     let interval;
@@ -109,6 +122,11 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [otpCooldown]);
+
+  // Scroll AI chat to bottom
+  useEffect(() => {
+    aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiChatMessages]);
 
   // FETCH WORKERS FROM BACKEND
   const fetchWorkers = async (filters = searchFilters, page = 1) => {
@@ -256,8 +274,8 @@ export default function App() {
 
       if (data.status === "success" || data.status === "mock_success") {
         setAdminState(prev => {
-          const newActiveJobs = prev.activeJobs + 1;
-          const newOnSchedule = prev.onSchedule + 1;
+          const newActiveJobs = (prev.activeJobs || 0) + 1;
+          const newOnSchedule = (prev.onSchedule || 0) + 1;
           
           const newLiveOps = [
             {
@@ -268,7 +286,7 @@ export default function App() {
               icon: "✓",
               color: "green-bg"
             },
-            ...prev.liveOps
+            ...(prev.liveOps || [])
           ];
 
           return { ...prev, activeJobs: newActiveJobs, onSchedule: newOnSchedule, liveOps: newLiveOps };
@@ -309,7 +327,7 @@ export default function App() {
       
       if (data.status === "success" || data.status === "mock_success") {
         setAdminState(prev => {
-          const newPendingLeads = prev.pendingLeads + 1;
+          const newPendingLeads = (prev.pendingLeads || 0) + 1;
           const newLiveOps = [
             {
               id: Date.now(),
@@ -319,7 +337,7 @@ export default function App() {
               icon: "★",
               color: "blue-bg"
             },
-            ...prev.liveOps
+            ...(prev.liveOps || [])
           ];
 
           return {
@@ -447,25 +465,36 @@ export default function App() {
     }
   };
 
-  // 6. AI ESTIMATION TOOL
-  const [aiState, setAiState] = useState('upload'); 
-  const [aiResult, setAiResult] = useState(null);
-  
-  const handleAiUpload = async () => {
-    setAiState('processing');
+  // 6. AGENTIC AI CHAT
+  const handleAiChatSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!aiInput.trim() || isAiLoading) return;
+
+    const userMsg = { role: "user", content: aiInput };
+    const newMessages = [...aiChatMessages, userMsg];
+    setAiChatMessages(newMessages);
+    setAiInput("");
+    setIsAiLoading(true);
+
     try {
-      const response = await fetch('http://localhost:8001/api/ai/estimate', {
+      const response = await fetch('http://localhost:8001/api/ai/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: wizardForm.description }) 
+        body: JSON.stringify({ messages: newMessages })
       });
       const data = await response.json();
-      setAiResult(data);
-      setAiState('result');
+
+      if (data.status === "READY") {
+        setAiAuditResult(data);
+        setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+      } else {
+        setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+      }
     } catch (err) {
-      console.error("AI Estimation failed:", err);
-      addToast("AI Analysis failed. Using fallback estimates.", "error");
-      setAiState('result');
+      console.error("AI Agent failed", err);
+      setAiChatMessages(prev => [...prev, { role: "assistant", content: "I'm sorry, I encountered an error while analyzing your request. Please try again." }]);
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -475,7 +504,7 @@ export default function App() {
     if (!issue) return;
 
     setAdminState(prev => {
-      const remainingIssues = prev.criticalIssues.filter(i => i.id !== issueId);
+      const remainingIssues = (prev.criticalIssues || []).filter(i => i.id !== issueId);
       const newLiveOps = [
         {
           id: Date.now(),
@@ -485,7 +514,7 @@ export default function App() {
           icon: "✓",
           color: "green-bg"
         },
-        ...prev.liveOps
+        ...(prev.liveOps || [])
       ];
       return {
         ...prev,
@@ -511,6 +540,7 @@ export default function App() {
             setAuthStep('email');
             setActiveModal('login');
           }}
+          onOpenAiTool={openAiTool}
         />
       )}
 
@@ -528,10 +558,7 @@ export default function App() {
                 setWizardStep(1);
                 setActiveModal('booking');
               }}
-              onOpenAiTool={() => {
-                setAiState('upload');
-                setActiveModal('ai');
-              }}
+              onOpenAiTool={openAiTool}
               onOpenPostJob={() => {
                 setPostJobForm({ title: "", category: "Electrical", location: "Sector 62, Noida", budget: "₹15,000", desc: "" });
                 setActiveModal('post-job');
@@ -948,68 +975,91 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. AI COST ESTIMATION TOOL MODAL */}
+      {/* 5. AGENTIC AI COST ESTIMATION TOOL MODAL */}
       {activeModal === 'ai' && (
         <div className="modal-backdrop active">
-          <div className="modal-card">
+          <div className="modal-card ai-agent-modal">
             <div className="modal-header">
-              <h3>AI Cost Estimation Tool</h3>
+              <div className="flex-align">
+                <div className="ai-status-dot"></div>
+                <h3>Build_Trust Project Manager</h3>
+              </div>
               <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
             </div>
-            <div className="modal-body">
-              {aiState === 'upload' && (
-                <div className="ai-upload-box" onClick={handleAiUpload}>
-                  <svg viewBox="0 0 24 24" width="48" height="48" style={{ color: '#ff6f00', marginBottom: '12px' }}>
-                    <path fill="currentColor" d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                  </svg>
-                  <h4>Upload Project Photo</h4>
-                  <p>Click here to analyze blueprint, wall damages, or layout mockups.</p>
-                </div>
-              )}
+            <div className="modal-body ai-chat-container">
+              <div className="ai-chat-messages">
+                {aiChatMessages.map((msg, idx) => (
+                  <div key={idx} className={`ai-msg-bubble ${msg.role}`}>
+                    <div className="msg-content">{msg.content}</div>
+                  </div>
+                ))}
+                {isAiLoading && (
+                  <div className="ai-msg-bubble assistant">
+                    <div className="msg-content typing-indicator">
+                      <span></span><span></span><span></span>
+                    </div>
+                  </div>
+                )}
+                
+                {aiAuditResult && (
+                  <div className="ai-result-integrated animate-fade">
+                    <div className="audit-card">
+                      <h4>🛠 Professional Project Audit</h4>
+                      <div className="audit-grid">
+                        <div className="audit-item"><span>Trade:</span> <strong>{aiAuditResult.estimate.trade}</strong></div>
+                        <div className="audit-item"><span>Est. Cost:</span> <strong>₹{aiAuditResult.estimate.estimated_cost_inr.toLocaleString()}</strong></div>
+                      </div>
+                      <p className="audit-summary">{aiAuditResult.estimate.summary}</p>
+                    </div>
 
-              {aiState === 'processing' && (
-                <div className="ai-processing-box">
-                  <div className="spinner"></div>
-                  <p>Analyzing materials, dimensions, and local trade rates...</p>
-                </div>
-              )}
+                    <div className="matchmaking-section">
+                      <h4>✅ Recommended Specialists</h4>
+                      <div className="ai-worker-grid">
+                        {aiAuditResult.specialists.map(w => (
+                          <div key={w.id} className="ai-worker-mini-card">
+                            <div className="mini-avatar" style={{ backgroundImage: `url('${w.image}')` }}></div>
+                            <div className="mini-info">
+                              <strong>{w.name}</strong>
+                              <span>★ {w.rating} • ₹{w.rate}/hr</span>
+                            </div>
+                            <button 
+                              className="btn btn-accent btn-small"
+                              onClick={() => {
+                                setActiveModal(null);
+                                navigate(`/profile/${w.id}`);
+                              }}
+                            >
+                              View
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={aiChatEndRef} />
+              </div>
 
-              {aiState === 'result' && (
-                <div className="ai-result-box">
-                  <div className="result-badge-success">AI AUDIT COMPLETE</div>
-                  <table className="ai-result-table">
-                    <tbody>
-                      <tr>
-                        <td>Recommended Trade</td>
-                        <td>{aiResult?.trade || 'Masonry / Brickwork'}</td>
-                      </tr>
-                      <tr>
-                        <td>Estimated Work Area</td>
-                        <td>{aiResult?.area || '120 sq ft'}</td>
-                      </tr>
-                      <tr>
-                        <td>Average Material Cost</td>
-                        <td>₹{(aiResult?.material_cost || 14500).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Labor Hours Estimate</td>
-                        <td>{aiResult?.labor_hours || 16} Hours</td>
-                      </tr>
-                      <tr className="total-row">
-                        <td>Total Project Estimate</td>
-                        <td>₹{(aiResult?.total_estimate || 24800).toLocaleString()}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <button 
-                    className="btn btn-accent btn-full"
-                    onClick={() => {
-                      setActiveModal(null);
-                      applyFilters({ ...searchFilters, category: aiResult?.trade || 'Masonry', text: aiResult?.trade || 'Masonry' });
-                      navigate('/search');
-                    }}
-                  >
-                    Find Specialists for this Job
+              {!aiAuditResult && (
+                <form className="ai-chat-input-area" onSubmit={handleAiChatSubmit}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Describe your project..." 
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    disabled={isAiLoading}
+                  />
+                  <button type="submit" className="btn btn-accent" disabled={isAiLoading}>
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
+                </form>
+              )}
+              
+              {aiAuditResult && (
+                <div className="ai-chat-footer" style={{ padding: '15px' }}>
+                  <button className="btn btn-text btn-full" onClick={openAiTool}>
+                    Scope Another Project
                   </button>
                 </div>
               )}

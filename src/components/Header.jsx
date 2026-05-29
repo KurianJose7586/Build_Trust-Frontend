@@ -6,7 +6,8 @@ export default function Header({
   setActiveView, 
   currentLocation, 
   setCurrentLocation, 
-  onOpenLogin 
+  onOpenLogin,
+  onOpenAiTool
 }) {
   const [locDropdownOpen, setLocDropdownOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
@@ -89,6 +90,13 @@ export default function Header({
           >
             Find Workers
           </Link>
+          {/* AI Estimator Button Styled as Link */}
+          <button 
+            className="nav-link btn-ai-nav" 
+            onClick={onOpenAiTool}
+          >
+            AI Estimator
+          </button>
           <a 
             href="#services" 
             className="nav-link"
