@@ -16,9 +16,11 @@ export default function ProfileView({
   if (!worker) {
     return (
       <div className="container" style={{ padding: '100px 0', textAlign: 'center' }}>
-        <h2>Specialist Not Found</h2>
-        <p>The profile you are looking for does not exist or has been moved.</p>
-        <button className="btn btn-primary" onClick={() => setActiveView('search')}>Back to Search</button>
+        <div className="skeleton-avatar skeleton" style={{ margin: '0 auto 20px' }}></div>
+        <div className="skeleton-title skeleton" style={{ margin: '0 auto 10px', width: '200px' }}></div>
+        <div className="skeleton-text skeleton" style={{ margin: '0 auto', width: '300px' }}></div>
+        <p style={{ marginTop: '30px' }}>Searching Dataverse for specialist details...</p>
+        <button className="btn btn-text" onClick={() => setActiveView('search')} style={{ marginTop: '20px' }}>Back to Search</button>
       </div>
     );
   }

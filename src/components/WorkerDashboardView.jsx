@@ -1,0 +1,128 @@
+import React, { useState } from 'react';
+import Breadcrumbs from './Breadcrumbs';
+
+export default function WorkerDashboardView({ 
+  currentUser, 
+  adminState, 
+  setActiveView,
+  onCallAdmin 
+}) {
+  const [activeTab, setActiveTab] = useState('bookings');
+
+  // Filter jobs specific to this worker (matching by name in mock or email)
+  const myBookings = (adminState.liveOps || []).filter(op => 
+    op.type === 'job' && op.text.includes(currentUser.name || currentUser.email)
+  );
+
+  const stats = {
+    earnings: "₹12,450",
+    completedJobs: 8,
+    rating: 4.9,
+    profileViews: 142
+  };
+
+  return (
+    <div id="view-worker-dashboard" className="app-view active-view container" style={{ padding: '40px 0' }}>
+      <Breadcrumbs paths={[{ label: "Specialist Dashboard", active: true }]} />
+      
+      <header className="dashboard-header" style={{ marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: '32px' }}>Namaste, {currentUser.name || 'Specialist'}!</h1>
+            <p style={{ color: 'var(--text-muted)' }}>Manage your active projects and track your earnings.</p>
+          </div>
+          <div className="status-badge" style={{ padding: '8px 16px', background: '#ecfdf5', color: '#10b981', borderRadius: '20px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="live-pulse" style={{ width: '8px', height: '8px' }}></span> Available for Work
+          </div>
+        </div>
+      </header>
+
+      {/* WORKER STATS */}
+      <section className="admin-metrics-grid" style={{ marginBottom: '40px' }}>
+        <div className="metric-card">
+          <div className="metric-header"><span>Monthly Earnings</span></div>
+          <div className="metric-value">{stats.earnings}</div>
+          <p style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>▲ 15% from last month</p>
+        </div>
+        <div className="metric-card">
+          <div className="metric-header"><span>Completed Jobs</span></div>
+          <div className="metric-value">{stats.completedJobs}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-header"><span>Average Rating</span></div>
+          <div className="metric-value">★ {stats.rating}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-header"><span>Profile Views</span></div>
+          <div className="metric-value">{stats.profileViews}</div>
+        </div>
+      </section>
+
+      <div className="admin-layout" style={{ background: 'white', borderRadius: '16px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+        {/* TAB NAVIGATION */}
+        <div className="panel-header" style={{ borderBottom: '1px solid #f1f5f9', padding: '0 20px' }}>
+          <div className="toggle-buttons" style={{ margin: '10px 0' }}>
+            <button className={`toggle-btn ${activeTab === 'bookings' ? 'active' : ''}`} onClick={() => setActiveTab('bookings')}>Upcoming Bookings</button>
+            <button className={`toggle-btn ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>Customer Messages</button>
+            <button className={`toggle-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Profile Settings</button>
+          </div>
+        </div>
+
+        <div style={{ padding: '24px' }}>
+          {activeTab === 'bookings' && (
+            <div className="bookings-list">
+              {myBookings.length === 0 ? (
+                <div className="text-center" style={{ padding: '60px 0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                  <p style={{ color: 'var(--text-muted)' }}>No upcoming bookings. Try lowering your hourly rate or adding more specialties!</p>
+                </div>
+              ) : (
+                myBookings.map((job, idx) => (
+                  <div key={idx} className="feed-item" style={{ padding: '16px', border: '1px solid #f1f5f9', borderRadius: '12px', marginBottom: '12px' }}>
+                    <div className="feed-icon-box blue-bg">J</div>
+                    <div className="feed-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ fontWeight: 600 }}>{job.text}</p>
+                        <span className="feed-time">Assigned {job.time}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                         <button className="btn btn-primary btn-small">Accept</button>
+                         <button className="btn btn-outline btn-small">Decline</button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'messages' && (
+            <div className="text-center" style={{ padding: '60px 0' }}>
+               <p style={{ color: 'var(--text-muted)' }}>Syncing secure chat history with Dataverse...</p>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="settings-form" style={{ maxWidth: '600px' }}>
+              <div className="form-group">
+                <label className="form-label">Professional Bio</label>
+                <textarea className="form-input" rows="4" defaultValue={`I am a professional specialist with over ${stats.completedJobs} successful projects on Build_Trust.`}></textarea>
+              </div>
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label className="form-label">Hourly Rate (₹)</label>
+                  <input type="number" className="form-input" defaultValue="450" />
+                </div>
+                <div className="form-group flex-1">
+                  <label className="form-label">Available Radius (km)</label>
+                  <input type="number" className="form-input" defaultValue="15" />
+                </div>
+              </div>
+              <button className="btn btn-accent">Save Profile Changes</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

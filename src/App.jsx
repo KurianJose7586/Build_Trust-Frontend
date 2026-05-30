@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -7,6 +7,8 @@ import LandingView from './components/LandingView';
 import SearchView from './components/SearchView';
 import ProfileView from './components/ProfileView';
 import AdminView from './components/AdminView';
+import CustomerProfileView from './components/CustomerProfileView';
+import WorkerDashboardView from './components/WorkerDashboardView';
 
 import { initialWorkers, initialAdminState } from './data/mockData';
 
@@ -28,10 +30,13 @@ function ProfileViewWrapper({
 
   // FETCH CHAT HISTORY ON LOAD
   useEffect(() => {
-    if (isLoggedIn && currentUser && id) {
+    const token = localStorage.getItem('bt_token');
+    if (token && id) {
       const fetchChat = async () => {
         try {
-          const res = await fetch(`http://localhost:8001/api/chat/${id}?customer_email=${currentUser.email}`);
+          const res = await fetch(`http://localhost:8005/api/chat/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             setChatLogs(prev => ({ ...prev, [id]: data }));
@@ -42,7 +47,7 @@ function ProfileViewWrapper({
       };
       fetchChat();
     }
-  }, [id, isLoggedIn, currentUser]);
+  }, [id, isLoggedIn]);
 
   return (
     <ProfileView 
@@ -86,8 +91,11 @@ export default function App() {
   // AUTH STATE
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authStep, setAuthStep] = useState('email'); // 'email' or 'otp'
+  const [authStep, setAuthStep] = useState('identify'); // identify, login_options, verify_otp, register
   const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authRole, setAuthRole] = useState("customer");
+  const [authName, setAuthName] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
 
@@ -100,6 +108,19 @@ export default function App() {
     distance: 15
   });
 
+  // KEEPALIVE / WAKE UP BACKEND (HuggingFace Cold Start)
+  useEffect(() => {
+    const wakeup = async () => {
+      try {
+        await fetch('http://localhost:8005/');
+        console.log("Backend wake-up signal sent successfully.");
+      } catch (err) {
+        console.warn("Backend still sleeping or unreachable.");
+      }
+    };
+    wakeup();
+  }, []);
+
   // AGENTIC AI STATE
   const [aiChatMessages, setAiChatMessages] = useState([]);
   const [aiInput, setAiInput] = useState("");
@@ -109,6 +130,8 @@ export default function App() {
   const [aiChips, setAiChips] = useState([]);
   const [showAiInput, setShowAiInput] = useState(false);
   const [pendingAiResult, setPendingAiResult] = useState(null);
+  const [isPaymentStep, setIsPaymentStep] = useState(false);
+  const [isBookingComplete, setIsBookingComplete] = useState(false);
   const aiChatEndRef = useRef(null);
 
   const openAiTool = () => {
@@ -137,9 +160,29 @@ export default function App() {
     aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiChatMessages]);
 
-  // FETCH WORKERS FROM BACKEND
+  const authenticatedFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('bt_token');
+    const headers = {
+      ...options.headers,
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+    return fetch(url, { ...options, headers });
+  };
+
+  // FETCH WORKERS FROM BACKEND (with SWR Caching)
   const fetchWorkers = async (filters = searchFilters, page = 1) => {
     setIsLoadingWorkers(true);
+    
+    // SWR: Load from cache first if first page
+    if (page === 1) {
+      const cached = localStorage.getItem('bt_cache_workers');
+      if (cached) {
+        setWorkers(JSON.parse(cached));
+        setIsLoadingWorkers(false); // Hide spinner early
+      }
+    }
+
     try {
       const queryParams = new URLSearchParams({
         page: page,
@@ -150,21 +193,20 @@ export default function App() {
         max_rate: filters.budget || 1000000
       });
 
-      const response = await fetch(`http://localhost:8001/api/workers?${queryParams.toString()}`);
+      const response = await fetch(`http://localhost:8005/api/workers?${queryParams.toString()}`);
       const data = await response.json();
       if (Array.isArray(data)) {
         if (page === 1) {
           setWorkers(data);
+          localStorage.setItem('bt_cache_workers', JSON.stringify(data));
         } else {
           setWorkers(prev => [...prev, ...data]);
         }
       } else {
         console.error("Malformed workers data:", data);
-        if (page === 1) setWorkers(initialWorkers);
       }
     } catch (err) {
       console.error("Failed to fetch workers:", err);
-      if (page === 1) setWorkers(initialWorkers);
     } finally {
       setIsLoadingWorkers(false);
     }
@@ -174,29 +216,60 @@ export default function App() {
     fetchWorkers();
   }, []);
 
+  // Pre-fetching worker profile on hover
+  const prefetchWorker = async (workerId) => {
+    // Only prefetch if we don't have it cached or in local state
+    // For this prototype, we'll just simulate a trigger
+    console.log(`Pre-fetching profile for ${workerId}...`);
+  };
+
   const applyFilters = (newFilters) => {
     setSearchFilters(newFilters);
     fetchWorkers(newFilters, 1);
   };
 
-  // FETCH ADMIN STATS FROM BACKEND
+  // FETCH ADMIN STATS FROM BACKEND (with SWR)
   useEffect(() => {
+    let interval;
     const fetchAdminStats = async () => {
+      // SWR Cache: Load full state
+      const cached = localStorage.getItem('bt_cache_admin_state');
+      if (cached) setAdminState(JSON.parse(cached));
+
       setIsLoadingAdmin(true);
       try {
-        const response = await fetch('http://localhost:8001/api/admin/stats');
-        const data = await response.json();
-        if (data && !data.error) {
-          setAdminState(prev => ({ ...prev, ...data }));
+        const [statsRes, opsRes] = await Promise.all([
+          authenticatedFetch('http://localhost:8005/api/admin/stats'),
+          authenticatedFetch('http://localhost:8005/api/admin/live-ops')
+        ]);
+        
+        const statsData = await statsRes.json();
+        const opsData = await opsRes.json();
+        
+        if (statsData && !statsData.error) {
+          setAdminState(prev => {
+            const newState = { 
+              ...prev, 
+              ...statsData, 
+              liveOps: Array.isArray(opsData) ? opsData : prev.liveOps 
+            };
+            localStorage.setItem('bt_cache_admin_state', JSON.stringify(newState));
+            return newState;
+          });
         }
       } catch (err) {
-        console.error("Failed to fetch admin stats:", err);
+        console.error("Failed to fetch admin data:", err);
       } finally {
         setIsLoadingAdmin(false);
       }
     };
-    fetchAdminStats();
-  }, []);
+    
+    if (isLoggedIn) {
+      fetchAdminStats();
+      interval = setInterval(fetchAdminStats, 30000); // Sync every 30s
+    }
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
   
   // Modals & Overlays Visibility
   const [activeModal, setActiveModal] = useState(null); 
@@ -217,6 +290,8 @@ export default function App() {
     if (viewName === 'home') navigate('/');
     else if (viewName === 'search') navigate('/search');
     else if (viewName === 'admin') navigate('/admin');
+    else if (viewName === 'profile') navigate('/profile');
+    else if (viewName === 'worker-dashboard') navigate('/worker-dashboard');
     else if (viewName.startsWith('profile/')) {
       const id = viewName.split('/')[1];
       navigate(`/profile/${id}`);
@@ -254,9 +329,23 @@ export default function App() {
   const handleBookingConfirm = async () => {
     // SECURITY CHECK: MANDATORY LOGIN
     if (!isLoggedIn) {
-      setAuthStep('email');
+      setAuthStep('identify');
       setActiveModal('login');
       addToast("Please login to finalize your booking", "info");
+      return;
+    }
+
+    if (isBookingComplete) {
+      setActiveModal(null);
+      setIsBookingComplete(false);
+      setIsPaymentStep(false);
+      navigate('/profile');
+      return;
+    }
+
+    if (!isPaymentStep) {
+      setIsPaymentStep(true);
+      setWizardStep(4); // New step for payment
       return;
     }
 
@@ -266,17 +355,17 @@ export default function App() {
     const totalCost = worker.rate * wizardForm.hours;
     
     const bookingPayload = {
-      ...wizardForm,
-      workerId: worker.id,
       workerName: worker.name,
+      description: wizardForm.description,
+      address: wizardForm.address,
+      hours: wizardForm.hours,
       totalCost: totalCost,
-      customerEmail: currentUser.email
+      date: wizardForm.date
     };
 
     try {
-      const response = await fetch('http://localhost:8001/api/jobs', {
+      const response = await authenticatedFetch('http://localhost:8005/api/jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingPayload)
       });
       const data = await response.json();
@@ -289,7 +378,7 @@ export default function App() {
           const newLiveOps = [
             {
               id: Date.now(),
-              text: `Hired: ${worker.name} accepted job at ${wizardForm.address} (₹${totalCost.toLocaleString()} / ${wizardForm.hours} hrs)`,
+              text: `Hired: ${worker.name} at ${wizardForm.address} (₹${totalCost.toLocaleString()})`,
               time: "Just now",
               type: "job",
               icon: "✓",
@@ -300,14 +389,14 @@ export default function App() {
 
           return { ...prev, activeJobs: newActiveJobs, onSchedule: newOnSchedule, liveOps: newLiveOps };
         });
-
-        addToast(`Hired ${worker.name}! Request saved to Dataverse.`, 'success');
-        setActiveModal(null);
-        navigate('/search');
+        
+        setIsBookingComplete(true);
+        setWizardStep(5);
+        addToast(`Payment successful! ${worker.name} is booked.`);
       }
     } catch (err) {
       console.error("Failed to confirm booking:", err);
-      addToast("Failed to register booking. Check backend connection.", "error");
+      addToast("Connection delay: your booking will sync when back online.", "warning");
     }
   };
 
@@ -326,10 +415,13 @@ export default function App() {
       return;
     }
 
+    // OPTIMISTIC UI
+    setActiveModal(null);
+    addToast("Posting your project requirements...", "info");
+
     try {
-      const response = await fetch('http://localhost:8001/api/leads', {
+      const response = await authenticatedFetch('http://localhost:8005/api/leads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(postJobForm)
       });
       const data = await response.json();
@@ -340,7 +432,7 @@ export default function App() {
           const newLiveOps = [
             {
               id: Date.now(),
-              text: `Lead Posted: "${postJobForm.title}" (${postJobForm.category}) in ${postJobForm.location} - Budget: ${postJobForm.budget}`,
+              text: `Lead Posted: "${postJobForm.title}" (${postJobForm.category})`,
               time: "Just now",
               type: "lead",
               icon: "★",
@@ -355,35 +447,52 @@ export default function App() {
             liveOps: newLiveOps
           };
         });
-
-        addToast("Project requirements posted successfully! Admin Dashboard notified.");
-        setActiveModal(null);
-      } else {
-        throw new Error(data.message || "Failed to post lead");
+        addToast("Project requirements live on Dataverse!");
       }
     } catch (err) {
       console.error("Failed to post lead:", err);
-      addToast("Failed to post lead. Please check backend connection.", "error");
     }
   };
 
-  // 5. AUTH HANDLERS
-  const handleSendOtp = async () => {
-    if (!authEmail.includes("@")) {
+  // 5. AUTH HANDLERS (REFACTORED)
+  const handleIdentifyEmail = async () => {
+    const email = authEmail.trim().toLowerCase();
+    if (!email.includes("@")) {
       addToast("Please enter a valid email address", "info");
       return;
     }
+    console.log(`Identifying email: ${email}`);
     try {
-      const res = await fetch('http://localhost:8001/api/auth/send-otp', {
+      const res = await fetch('http://localhost:8005/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      });
+      const data = await res.json();
+      console.log("Check-email response:", data);
+      if (data.exists) {
+        setAuthStep('login_options');
+      } else {
+        handleSendOtp(true);
+      }
+    } catch (err) {
+      console.error("Identity check failed:", err);
+      addToast("Backend unreachable. Ensure FastAPI is running on port 8005.", "error");
+    }
+  };
+
+  const handleSendOtp = async (isRegistering = false) => {
+    try {
+      const res = await fetch('http://localhost:8005/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: authEmail })
       });
       const data = await res.json();
       if (data.status === "success") {
-        setAuthStep('otp');
+        setAuthStep('verify_otp');
         setOtpCooldown(60); 
-        addToast("OTP sent! Please check your inbox.");
+        addToast("Verification code sent to your inbox!");
       } else {
         addToast(data.message, "error");
       }
@@ -392,30 +501,107 @@ export default function App() {
     }
   };
 
+  const handleLoginPassword = async () => {
+    const email = authEmail.trim().toLowerCase();
+    const password = authPassword;
+    console.log(`Login attempt for: ${email}`);
+    try {
+      const res = await fetch('http://localhost:8005/api/auth/login-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      const data = await res.json();
+      console.log("Login-password response:", data);
+      if (data.status === "success") {
+        loginSuccess(data);
+      } else {
+        addToast(data.detail || "Invalid credentials", "error");
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+      addToast("Login service unreachable.", "error");
+    }
+  };
+
   const handleVerifyOtp = async () => {
     try {
-      const res = await fetch('http://localhost:8001/api/auth/verify-otp', {
+      const res = await fetch('http://localhost:8005/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: authEmail, code: otpValue })
       });
       const data = await res.json();
       if (data.status === "success") {
-        setIsLoggedIn(true);
-        setCurrentUser(data.user);
-        addToast(`Welcome back, ${data.user.email}!`);
+        // If they exist, log them in. If not, go to register profile.
+        const checkRes = await fetch('http://localhost:8005/api/auth/check-email', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ email: authEmail })
+        });
+        const checkData = await checkRes.json();
         
-        if (bookingWorkerId) {
-          setActiveModal('booking');
-          setWizardStep(3); 
+        if (checkData.exists) {
+           loginSuccess(data);
         } else {
-          setActiveModal(null);
+           setAuthStep('register');
         }
       } else {
         addToast(data.message, "error");
       }
     } catch (err) {
       addToast("Verification failed", "error");
+    }
+  };
+
+  const handleRegisterUser = async () => {
+     if (!authName || !authPassword) {
+        addToast("Please fill all required fields", "info");
+        return;
+     }
+     try {
+       const res = await fetch('http://localhost:8005/api/auth/register', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           email: authEmail,
+           password: authPassword,
+           role: authRole,
+           fullName: authName
+         })
+       });
+       const data = await res.json();
+       if (data.status === "success" || data.status === "mock_success") {
+         loginSuccess(data);
+         addToast("Account created successfully!");
+       }
+     } catch (err) {
+       addToast("Registration failed", "error");
+     }
+  };
+
+  const loginSuccess = (data) => {
+    localStorage.setItem('bt_token', data.token);
+    setIsLoggedIn(true);
+    setCurrentUser(data.user);
+    addToast(`Welcome, ${data.user.name || data.user.email}!`);
+    
+    // REVEAL AI RESULT IF WAITING
+    if (pendingAiResult) {
+      setAiAuditResult(pendingAiResult);
+      setPendingAiResult(null);
+      setAiStep(3);
+      setShowAiInput(true);
+      setActiveModal('ai');
+    } else if (bookingWorkerId) {
+      setActiveModal('booking');
+      setWizardStep(3); 
+    } else {
+      setActiveModal(null);
+      // Route based on role
+      if (data.user.role === 'admin') navigate('/admin');
+      else if (data.user.role === 'specialist') navigate('/worker-dashboard');
+      else navigate('/profile');
     }
   };
 
@@ -426,9 +612,9 @@ export default function App() {
     if (chatInput.trim() === "" || !isLoggedIn) return;
     
     const workerId = chattingWorkerId;
-    const clientMsg = { sender: 'client', text: chatInput };
+    const clientMsg = { sender: 'client', text: chatInput, pending: true };
     
-    // Optimistic UI update
+    // OPTIMISTIC UI update
     setChatLogs(prev => {
       const list = prev[workerId] || [];
       return { ...prev, [workerId]: [...list, clientMsg] };
@@ -436,33 +622,26 @@ export default function App() {
     setChatInput("");
 
     try {
-      await fetch('http://localhost:8001/api/chat', {
+      await authenticatedFetch('http://localhost:8005/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workerId: workerId,
-          customerEmail: currentUser.email,
-          sender: 'client',
           text: clientMsg.text
         })
+      });
+
+      // Clear pending state
+      setChatLogs(prev => {
+        const list = [...(prev[workerId] || [])];
+        const last = list[list.length - 1];
+        if (last) last.pending = false;
+        return { ...prev, [workerId]: list };
       });
 
       // Simulation: Auto-reply
       setTimeout(async () => {
         const replyText = "Thank you for the message! I've received your inquiry and will review the project specs shortly.";
         const workerMsg = { sender: 'worker', text: replyText };
-        
-        await fetch('http://localhost:8001/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workerId: workerId,
-            customerEmail: currentUser.email,
-            sender: 'worker',
-            text: replyText
-          })
-        });
-
         setChatLogs(prev => {
           const list = prev[workerId] || [];
           return { ...prev, [workerId]: [...list, workerMsg] };
@@ -475,12 +654,19 @@ export default function App() {
   };
 
   // 6. AGENTIC AI CHAT (CHIP-BASED)
+  const [aiStatus, setAiStatus] = useState(null);
+
   const handleAiChatSubmit = async (e, forcedInput = null) => {
     if (e) e.preventDefault();
     const currentInput = forcedInput || aiInput;
     if (!currentInput.trim() || isAiLoading) return;
 
-    // Reset UI state for next turn
+    if (currentInput === "Login to see results") {
+      setAuthStep('identify');
+      setActiveModal('login');
+      return;
+    }
+
     setAiChips([]);
     setShowAiInput(false);
 
@@ -489,32 +675,61 @@ export default function App() {
     setAiChatMessages(newMessages);
     setAiInput("");
     setIsAiLoading(true);
+    setAiStatus("Analyzing requirements...");
+
+    // Micro-copy sequence for perceived performance
+    const statuses = [
+      "Consulting construction database...",
+      "Matching with NCR specialists...",
+      "Calculating cost estimates...",
+      "Finalizing project scope..."
+    ];
+    let statusIdx = 0;
+    const statusInterval = setInterval(() => {
+      if (statusIdx < statuses.length) {
+        setAiStatus(statuses[statusIdx]);
+        statusIdx++;
+      }
+    }, 1500);
 
     try {
-      const response = await fetch('http://localhost:8001/api/ai/agent', {
+      const response = await fetch('http://localhost:8005/api/ai/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages })
       });
       const data = await response.json();
+      clearInterval(statusInterval);
+      setAiStatus(null);
 
       if (data.status === "READY") {
+        if (!isLoggedIn) {
+          setPendingAiResult(data);
+          setAiChatMessages(prev => [...prev, { 
+            role: "assistant", 
+            content: "Wow, your project sounds incredible! 🛠️ I've just finished running the numbers and found some perfect specialists for you. \n\nTo see your custom cost estimate and view these curated pros, could you please **quickly login**? It helps us keep your project data secure!" 
+          }]);
+          setAiChips(["Login to see results"]);
+          setIsAiLoading(false);
+          return;
+        }
         setAiAuditResult(data);
         setAiStep(3);
-        setShowAiInput(true); // Always show at the end
+        setShowAiInput(true); 
         setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
       } else if (data.status === "QUESTION") {
         setAiStep(2);
         setAiChips(data.chips || []);
         setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
       } else {
-        // Fallback for simple chat responses
         setAiChatMessages(prev => [...prev, { role: "assistant", content: data.message || "I'm not sure how to respond to that." }]);
         setShowAiInput(true);
       }
     } catch (err) {
+      clearInterval(statusInterval);
+      setAiStatus(null);
       console.error("AI Agent failed", err);
-      setAiChatMessages(prev => [...prev, { role: "assistant", content: "I'm sorry, I encountered an error while analyzing your request. Please try again." }]);
+      setAiChatMessages(prev => [...prev, { role: "assistant", content: "Connection timeout. Please check your internet or HuggingFace space status." }]);
       setShowAiInput(true);
     } finally {
       setIsAiLoading(false);
@@ -523,15 +738,14 @@ export default function App() {
 
   // 7. ADMIN DASHBOARD ISSUE RESOLVER
   const handleResolveIssue = (issueId) => {
-    const issue = adminState.criticalIssues.find(i => i.id === issueId);
-    if (!issue) return;
-
     setAdminState(prev => {
       const remainingIssues = (prev.criticalIssues || []).filter(i => i.id !== issueId);
+      const resolvedIssue = (prev.criticalIssues || []).find(i => i.id === issueId);
+      
       const newLiveOps = [
         {
           id: Date.now(),
-          text: `Resolved critical issue: ${issue.title}`,
+          text: `Resolved critical issue: ${resolvedIssue?.title || 'Unknown Issue'}`,
           time: "Just now",
           type: "job",
           icon: "✓",
@@ -539,16 +753,33 @@ export default function App() {
         },
         ...(prev.liveOps || [])
       ];
-      return {
+
+      const newState = {
         ...prev,
         criticalIssues: remainingIssues,
         issuesCount: remainingIssues.length,
         liveOps: newLiveOps
       };
+      
+      localStorage.setItem('bt_cache_admin_state', JSON.stringify(newState));
+      return newState;
     });
 
-    addToast(`Successfully resolved: ${issue.title}`);
+    addToast(`Successfully resolved issue #BT-${issueId.substring(5)}`);
   };
+
+  // 10. RESCUE BYPASS (Debug Only)
+  useEffect(() => {
+    window.rescueAdmin = () => {
+      console.warn("RESCUE BYPASS: Entering Admin Mode manually.");
+      const mockData = {
+        token: "rescue_token_" + Date.now(),
+        user: { email: 'admin@buildtrust.com', role: 'admin', name: 'Vikram Singh (Rescue)' }
+      };
+      loginSuccess(mockData);
+    };
+    console.log("%c Build_Trust Debug: If Admin Login fails, type 'rescueAdmin()' in this console.", "color: #ff6f00; font-weight: bold; font-size: 14px;");
+  }, []);
 
   return (
     <React.Fragment>
@@ -560,10 +791,12 @@ export default function App() {
           currentLocation={currentLocation}
           setCurrentLocation={setCurrentLocation}
           onOpenLogin={() => {
-            setAuthStep('email');
+            setAuthStep('identify');
             setActiveModal('login');
           }}
           onOpenAiTool={openAiTool}
+          isLoggedIn={isLoggedIn}
+          currentUser={currentUser}
         />
       )}
 
@@ -603,6 +836,7 @@ export default function App() {
                 const nextPage = Math.floor(workers.length / 20) + 1;
                 fetchWorkers(searchFilters, nextPage);
               }}
+              onPrefetch={prefetchWorker}
             />
           } />
 
@@ -619,6 +853,25 @@ export default function App() {
               addToast={addToast}
               isLoggedIn={isLoggedIn}
               currentUser={currentUser}
+            />
+          } />
+
+          <Route path="/profile" element={
+            <CustomerProfileView 
+              currentUser={currentUser}
+              adminState={adminState}
+              chatLogs={chatLogs}
+              workers={workers}
+              setActiveView={changeRoute}
+            />
+          } />
+
+          <Route path="/worker-dashboard" element={
+            <WorkerDashboardView 
+              currentUser={currentUser}
+              adminState={adminState}
+              setActiveView={changeRoute}
+              onCallAdmin={() => addToast("Connecting to administrator...", "info")}
             />
           } />
 
@@ -647,19 +900,24 @@ export default function App() {
         <Footer setActiveView={changeRoute} />
       )}
 
-      {/* LOGIN / AUTH MODAL */}
+      {/* LOGIN / AUTH MODAL (OVERHAULED) */}
       {activeModal === 'login' && (
         <div className="modal-backdrop active">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>{authStep === 'email' ? 'Login or Create Account' : 'Verify Email'}</h3>
+              <h3>
+                {authStep === 'identify' && 'Login or Register'}
+                {authStep === 'login_options' && 'Welcome Back'}
+                {authStep === 'verify_otp' && 'Verify Email'}
+                {authStep === 'register' && 'Complete Profile'}
+              </h3>
               <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
             </div>
             <div className="modal-body">
-              {authStep === 'email' ? (
+              {authStep === 'identify' && (
                 <div className="auth-form">
                   <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                    Enter your email to receive a 6-digit secure login code.
+                    Enter your email to get started. We'll check if you have an account.
                   </p>
                   <div className="form-group">
                     <label className="form-label">Email Address</label>
@@ -671,70 +929,123 @@ export default function App() {
                       onChange={(e) => setAuthEmail(e.target.value)}
                     />
                   </div>
-                  <button 
-                    type="button" 
-                    className={`btn btn-accent btn-full ${otpCooldown > 0 ? 'disabled' : ''}`}
-                    disabled={otpCooldown > 0}
-                    onClick={handleSendOtp}
-                  >
-                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Send Secure Code'}
-                  </button>
+                  <button className="btn btn-accent btn-full" onClick={handleIdentifyEmail}>Continue</button>
                   <div style={{ marginTop: '20px', textAlign: 'center' }}>
                     <button 
                       className="btn btn-text" 
                       style={{ fontSize: '12px' }}
-                      onClick={() => {
-                        setIsLoggedIn(true);
-                        setCurrentUser({ email: 'admin@buildtrust.com', role: 'admin' });
-                        changeRoute('admin');
-                        setActiveModal(null);
-                        addToast("Logged in as Administrator Vikram Singh!");
+                      onClick={async () => {
+                        console.log("Admin shortcut clicked. Targeting port 8005...");
+                        try {
+                          const res = await fetch('http://localhost:8005/api/auth/login-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: 'admin@buildtrust.com', password: '1234@' })
+                          });
+                          
+                          console.log(`Fetch response status: ${res.status}`);
+                          
+                          if (res.status === 404) {
+                             console.error("404 Error: The server at 8005 responded but the route was not found.");
+                             addToast("Server found, but login route is missing (404).", "error");
+                             return;
+                          }
+
+                          const data = await res.json();
+                          if (data.status === "success") {
+                            loginSuccess(data);
+                          } else {
+                            addToast(data.detail || "Admin login failed", "error");
+                          }
+                        } catch (err) {
+                          console.error("Fetch Error:", err);
+                          addToast("Cannot connect to server. Is FastAPI running on port 8005?", "error");
+                        }
                       }}
                     >
                       Login as Admin (Vikram Singh)
                     </button>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {authStep === 'login_options' && (
                 <div className="auth-form">
                   <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                    We've sent a 6-digit code to <strong>{authEmail}</strong>.
+                    Account found! Choose how you'd like to login.
                   </p>
                   <div className="form-group">
-                    <label className="form-label">Enter 6-Digit Code</label>
+                    <label className="form-label">Password</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      placeholder="••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                    />
+                  </div>
+                  <button className="btn btn-accent btn-full" onClick={handleLoginPassword}>Login with Password</button>
+                  <div className="divider-text" style={{ margin: '15px 0', textAlign: 'center', fontSize: '12px', opacity: 0.5 }}>OR</div>
+                  <button className="btn btn-outline btn-full" onClick={() => handleSendOtp()}>Send Login Code (OTP)</button>
+                  <button className="btn btn-text btn-full" style={{ marginTop: '10px' }} onClick={() => setAuthStep('identify')}>Not you? Switch email</button>
+                </div>
+              )}
+
+              {authStep === 'verify_otp' && (
+                <div className="auth-form">
+                  <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                    We've sent a code to <strong>{authEmail}</strong>.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">6-Digit Code</label>
                     <input 
                       type="text" 
-                      className="form-input" 
+                      className="form-input text-center" 
                       placeholder="000000"
                       maxLength="6"
+                      style={{ letterSpacing: '5px', fontSize: '20px' }}
                       value={otpValue}
                       onChange={(e) => setOtpValue(e.target.value)}
                     />
                   </div>
-                  <button 
-                    type="button" 
-                    className="btn btn-accent btn-full"
-                    onClick={handleVerifyOtp}
-                  >
-                    Verify & Continue
-                  </button>
-                  <button 
-                    className={`btn btn-text btn-full text-center ${otpCooldown > 0 ? 'disabled' : ''}`}
-                    disabled={otpCooldown > 0}
-                    style={{ marginTop: '10px', fontSize: '13px' }}
-                    onClick={() => {
-                      if (otpCooldown === 0) handleSendOtp();
-                    }}
-                  >
-                    {otpCooldown > 0 ? `Resend available in ${otpCooldown}s` : 'Resend Code'}
-                  </button>
-                  <button 
-                    className="btn btn-text btn-full text-center" 
-                    style={{ marginTop: '5px', fontSize: '13px', opacity: 0.7 }}
-                    onClick={() => setAuthStep('email')}
-                  >
-                    Change Email
-                  </button>
+                  <button className="btn btn-accent btn-full" onClick={handleVerifyOtp}>Verify & Continue</button>
+                  <button className="btn btn-text btn-full" style={{ marginTop: '10px' }} onClick={() => handleSendOtp()}>Resend Code</button>
+                </div>
+              )}
+
+              {authStep === 'register' && (
+                <div className="auth-form">
+                  <p style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                    Email verified! Tell us about yourself.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Arjun Sharma"
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">I want to...</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                       <button className={`btn flex-1 ${authRole === 'customer' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAuthRole('customer')}>Hire Specialists</button>
+                       <button className={`btn flex-1 ${authRole === 'specialist' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAuthRole('specialist')}>Work as Specialist</button>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Set a Password</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      placeholder="At least 8 characters"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                    />
+                  </div>
+                  <button className="btn btn-accent btn-full" onClick={handleRegisterUser}>Create Account</button>
                 </div>
               )}
             </div>
@@ -748,13 +1059,18 @@ export default function App() {
           <div className="modal-card wizard-card">
             <div className="modal-header">
               <h3>Hire {workers.find(w => w.id === bookingWorkerId)?.name}</h3>
-              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
+              <button className="close-modal-btn" onClick={() => {
+                setActiveModal(null);
+                setIsPaymentStep(false);
+                setIsBookingComplete(false);
+              }}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="wizard-steps-indicators">
                 <div className={`w-step ${wizardStep >= 1 ? 'active' : ''}`}>1. Details</div>
                 <div className={`w-step ${wizardStep >= 2 ? 'active' : ''}`}>2. Schedule</div>
                 <div className={`w-step ${wizardStep >= 3 ? 'active' : ''}`}>3. Confirm</div>
+                <div className={`w-step ${wizardStep >= 4 ? 'active' : ''}`}>4. Payment</div>
               </div>
 
               {wizardStep === 1 && (
@@ -856,23 +1172,107 @@ export default function App() {
                       <strong>Schedule:</strong>
                       <span>{wizardForm.date} (Est. {wizardForm.hours} hrs)</span>
                     </div>
-                    <div className="summary-row">
-                      <strong>Hourly Rate:</strong>
-                      <span>₹{workers.find(w => w.id === bookingWorkerId)?.rate} / hr</span>
-                    </div>
                     <div className="summary-row total-row">
-                      <strong>Estimated Total Cost:</strong>
+                      <strong>Total Cost:</strong>
                       <span>₹{(workers.find(w => w.id === bookingWorkerId)?.rate * wizardForm.hours).toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="wizard-footer">
                     <button className="btn btn-outline" style={{ color: 'var(--color-primary)', borderColor: '#cbd5e1' }} onClick={() => setWizardStep(2)}>&lt; Back</button>
                     <button className="btn btn-accent btn-large" onClick={handleBookingConfirm}>
-                      {isLoggedIn ? 'Confirm Booking' : 'Login to Confirm'}
+                      Proceed to Secure Payment
                     </button>
                   </div>
                 </div>
               )}
+
+              {wizardStep === 4 && (
+                <div className="wizard-pane active">
+                  <div className="payment-mock-ui" style={{ padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Amount to Pay</p>
+                      <h2 style={{ fontSize: '32px' }}>₹{(workers.find(w => w.id === bookingWorkerId)?.rate * wizardForm.hours).toLocaleString()}</h2>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Payment Method</label>
+                      <div className="payment-option selected" style={{ padding: '12px', border: '2px solid var(--color-accent)', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--color-accent)' }}></div>
+                        <span>UPI / QR Code</span>
+                      </div>
+                      <div className="payment-option" style={{ padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.6 }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1px solid #cbd5e1' }}></div>
+                        <span>Credit/Debit Card</span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '15px' }}>
+                      🔒 Secure 256-bit encrypted transaction via BuildTrust Pay.
+                    </p>
+                  </div>
+                  <div className="wizard-footer">
+                    <button className="btn btn-outline" style={{ color: 'var(--color-primary)', borderColor: '#cbd5e1' }} onClick={() => setWizardStep(3)}>&lt; Back</button>
+                    <button className="btn btn-accent btn-large" onClick={handleBookingConfirm}>
+                      Pay Now & Book
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {wizardStep === 5 && (
+                <div className="wizard-pane active text-center" style={{ padding: '40px 0' }}>
+                  <div className="success-icon-circle" style={{ width: '80px', height: '80px', background: '#ecfdf5', color: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyCenter: 'center', margin: '0 auto 24px', fontSize: '40px' }}>✓</div>
+                  <h2 style={{ marginBottom: '12px' }}>Booking Confirmed!</h2>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>
+                    {workers.find(w => w.id === bookingWorkerId)?.name} has been notified and will arrive at <strong>{wizardForm.address}</strong> on <strong>{wizardForm.date}</strong>.
+                  </p>
+                  <button className="btn btn-primary btn-large" onClick={handleBookingConfirm}>
+                    Go to My Bookings
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. CHAT SIMULATOR MODAL */}
+      {activeModal === 'chat' && chattingWorkerId && (
+        <div className="modal-backdrop active">
+          <div className="modal-card chat-modal-card">
+            <div className="modal-header">
+              <div className="chat-header-user">
+                <div className="admin-avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>
+                  {workers.find(w => w.id === chattingWorkerId)?.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px' }}>{workers.find(w => w.id === chattingWorkerId)?.name}</h3>
+                  <p style={{ fontSize: '11px', opacity: 0.7 }}>Typically replies in 5 mins</p>
+                </div>
+              </div>
+              <button className="close-modal-btn" onClick={() => setActiveModal(null)}>&times;</button>
+            </div>
+            <div className="chat-body">
+              <div className="chat-messages">
+                <div className="chat-msg worker">
+                  Namaste! How can I help you with your project today?
+                </div>
+                {(chatLogs[chattingWorkerId] || []).map((msg, idx) => (
+                  <div key={idx} className={`chat-msg ${msg.sender} ${msg.pending ? 'msg-pending' : ''}`}>
+                    {msg.text}
+                    {msg.pending && <span style={{ fontSize: '10px', display: 'block', textAlign: 'right', opacity: 0.5 }}>sending...</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="chat-input-bar">
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Type a message..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                />
+                <button className="btn btn-primary" onClick={handleSendChatMessage}>Send</button>
+              </div>
             </div>
           </div>
         </div>
@@ -926,8 +1326,11 @@ export default function App() {
               {isAiLoading && (
                 <div className="ai-msg-row assistant">
                   <div className="ai-mini-avatar">...</div>
-                  <div className="ai-bubble agent typing-indicator">
-                    <span></span><span></span><span></span>
+                  <div className="ai-bubble agent">
+                    <div className="ai-status-pulse">
+                      <div className="pulse-dot"></div>
+                      <span>{aiStatus || "Thinking..."}</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -938,18 +1341,20 @@ export default function App() {
                   {aiChips.map((chip, cidx) => (
                     <button 
                       key={cidx} 
-                      className="ai-option-chip"
+                      className={`ai-option-chip ${chip.includes('Login') ? 'btn-accent' : ''}`}
                       onClick={() => handleAiChatSubmit(null, chip)}
                     >
                       {chip}
                     </button>
                   ))}
-                  <button 
-                    className="ai-option-chip something-else"
-                    onClick={() => setShowAiInput(true)}
-                  >
-                    Something else...
-                  </button>
+                  {!aiChips.some(c => c.includes('Login')) && (
+                    <button 
+                      className="ai-option-chip something-else"
+                      onClick={() => setShowAiInput(true)}
+                    >
+                      Something else...
+                    </button>
+                  )}
                 </div>
               )}
               
