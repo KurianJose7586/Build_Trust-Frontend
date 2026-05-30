@@ -8,3 +8,5 @@ pydantic-settings
 pandas
 pyjwt
 resend
+passlib[bcrypt]
+email-validator

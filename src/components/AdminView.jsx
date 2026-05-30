@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export default function AdminView({ 
   adminState, 
@@ -12,32 +12,12 @@ export default function AdminView({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [revenueToggle, setRevenueToggle] = useState('week'); // 'week' or 'month'
-  const [liveOps, setLiveOps] = useState([]);
-  const [isLiveOpsLoading, setIsLiveOpsLoading] = useState(true);
 
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
 
-  // FETCH LIVE OPS FROM BACKEND
-  useEffect(() => {
-    const fetchLiveOps = async () => {
-      try {
-        const res = await fetch('http://localhost:8001/api/admin/live-ops');
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setLiveOps(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch live ops", err);
-      } finally {
-        setIsLiveOpsLoading(false);
-      }
-    };
-    fetchLiveOps();
-    
-    // Poll every 30 seconds for new events
-    const interval = setInterval(fetchLiveOps, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  // Use adminState directly, with fallbacks
+  const liveOps = adminState.liveOps || [];
+  const criticalIssues = adminState.criticalIssues || [];
 
   const handleExport = () => {
     const event = new CustomEvent('show-toast', { detail: { message: "CSV report generated. Export process running in background...", type: 'info' } });
@@ -158,8 +138,9 @@ export default function AdminView({
           {/* Metrics row */}
           <section className="admin-metrics-grid">
             {isLoading ? (
+              // SKELETON LOADERS
               [1, 2, 3, 4].map(i => (
-                <div key={i} className="metric-card skeleton skeleton-card" style={{ height: '100px' }}></div >
+                <div key={i} className="metric-card skeleton-metric skeleton"></div >
               ))
             ) : (
               <>
@@ -274,7 +255,7 @@ export default function AdminView({
                 </div>
               </div>
               <div className="live-feed-list">
-                {isLiveOpsLoading ? (
+                {isLoading ? (
                   [1, 2, 3].map(i => (
                     <div key={i} className="feed-item skeleton skeleton-text" style={{ height: '40px', marginBottom: '10px' }}></div>
                   ))
@@ -352,7 +333,7 @@ export default function AdminView({
                 <span className="issues-badge-count">{adminState.issuesCount}</span>
               </div>
               <div className="issues-list">
-                {adminState.criticalIssues.map(issue => (
+                {criticalIssues.map(issue => (
                   <div key={issue.id} className="issue-item-card">
                     <div className="issue-body">
                       <h4>{issue.title}</h4>
@@ -366,7 +347,7 @@ export default function AdminView({
                     </button>
                   </div>
                 ))}
-                {adminState.criticalIssues.length === 0 && (
+                {criticalIssues.length === 0 && (
                   <div className="text-center" style={{ padding: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
                     No critical issues pending. All systems running optimal.
                   </div>

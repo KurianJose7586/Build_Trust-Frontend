@@ -3,15 +3,17 @@ import Breadcrumbs from './Breadcrumbs';
 
 export default function SearchView({ 
   workers, 
-  isLoading,
+  isLoading, 
   setActiveView, 
   searchFilters, 
   setSearchFilters, 
   comparisonList, 
   setComparisonList, 
   onOpenComparison,
-  onLoadMore
+  onLoadMore,
+  onPrefetch // Add this
 }) {
+
   const [inputText, setInputText] = useState(searchFilters.text || "");
   const [budgetVal, setBudgetVal] = useState(searchFilters.budget || 1000);
   const [ratingVal, setRatingVal] = useState(searchFilters.rating || null);
@@ -201,7 +203,7 @@ export default function SearchView({
             ) : (
               <>
                 {filteredWorkers.map(worker => (
-                  <div key={worker.id} className="worker-row-card">
+                  <div key={worker.id} className="worker-row-card" onMouseEnter={() => onPrefetch?.(worker.id)}>
                     <div 
                       className="worker-row-avatar" 
                       style={{ backgroundImage: `url('${worker.image}')` }}

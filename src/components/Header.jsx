@@ -7,10 +7,13 @@ export default function Header({
   currentLocation, 
   setCurrentLocation, 
   onOpenLogin,
-  onOpenAiTool
+  onOpenAiTool,
+  isLoggedIn,
+  currentUser
 }) {
   const [locDropdownOpen, setLocDropdownOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const indianLocations = [
     "Greater Noida",
@@ -127,16 +130,54 @@ export default function Header({
         </nav>
 
         <div className="header-actions">
-          <button className="btn btn-text login-btn" onClick={onOpenLogin}>Login</button>
-          <Link 
-            to="/admin" 
-            className="btn btn-primary profile-btn"
-          >
-            <svg className="icon-user" viewBox="0 0 24 24" width="16" height="16" style={{ marginRight: '6px' }}>
-              <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>
-            Admin Portal
-          </Link>
+          {!isLoggedIn ? (
+            <>
+              <button className="btn btn-text login-btn" onClick={onOpenLogin}>Login</button>
+              <button 
+                className="btn btn-primary admin-shortcut-btn"
+                onClick={() => {
+                  onOpenLogin();
+                }}
+              >
+                Admin Portal
+              </button>
+            </>
+          ) : (
+            <div 
+              className="user-profile-menu"
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              onMouseLeave={() => setUserDropdownOpen(false)}
+            >
+              <div className="user-avatar-circle">
+                {currentUser?.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <span className="user-name-label">
+                {currentUser?.role === 'admin' ? 'Admin Vikram' : 'My Account'}
+              </span>
+              <svg className="icon-chevron" viewBox="0 0 24 24" width="12" height="12">
+                <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+              </svg>
+
+              {userDropdownOpen && (
+                <div className="dropdown-menu" style={{ display: 'block', right: 0, left: 'auto' }}>
+                  {currentUser?.role === 'admin' ? (
+                    <Link to="/admin" className="dropdown-item">Admin Dashboard</Link>
+                  ) : (
+                    <Link to="/profile" className="dropdown-item">My Bookings & Chats</Link>
+                  )}
+                  <button 
+                    className="dropdown-item" 
+                    onClick={() => {
+                      localStorage.removeItem('bt_token');
+                      window.location.reload();
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>
