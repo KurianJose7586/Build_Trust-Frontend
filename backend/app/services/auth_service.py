@@ -3,41 +3,82 @@ import jwt
 import os
 import datetime
 import resend
+import hashlib
+import base64
+import bcrypt
 from dotenv import load_dotenv
 
 # Ensure .env is loaded at module level
-load_dotenv()
+dotenv_path = os.path.join(os.path.dirname(__file__), '../../.env')
+load_dotenv(dotenv_path)
+
+from app.services.dataverse_service import dataverse_service
 
 class AuthService:
     def __init__(self):
-        # In-memory store for OTPs: { email: {code: "123456", expires: datetime} }
-        self.otp_store = {}
-        
-        self.secret_key = os.getenv("JWT_SECRET", "buildtrust_local_secret_2026")
+        # ... (init code)
+        self.secret_key = os.getenv("JWT_SECRET")
+        if not self.secret_key:
+            raise RuntimeError("CRITICAL ERROR: JWT_SECRET environment variable is missing!")
+            
         self.resend_key = os.getenv("RESEND_API_KEY")
+        self.email_configured = bool(self.resend_key)
         
-        if self.resend_key:
+        if self.email_configured:
             resend.api_key = self.resend_key
-            self.email_configured = True
             print("🚀 Resend Email Service: ONLINE")
         else:
-            self.email_configured = False
             print("⚠️ Resend Email Service: OFFLINE (Using Terminal Mock)")
 
-    def generate_otp(self, email: str):
-        # RATE LIMITING: Check if an OTP was sent recently (60s cooldown)
-        now = datetime.datetime.utcnow()
-        if email in self.otp_store:
-            last_sent = self.otp_store[email].get("sent_at")
-            if last_sent and (now - last_sent).total_seconds() < 60:
-                wait_time = 60 - int((now - last_sent).total_seconds())
-                raise Exception(f"Please wait {wait_time} seconds before requesting a new code.")
+    def _hash_for_bcrypt(self, password: str) -> bytes:
+        """SHA-256 pre-hash to bypass bcrypt 72-byte limit and return bytes"""
+        sha_hash = hashlib.sha256(password.encode('utf-8')).digest()
+        return base64.b64encode(sha_hash)
+
+    def get_password_hash(self, password: str) -> str:
+        """Generates a secure bcrypt hash of a pre-hashed password"""
+        prepared = self._hash_for_bcrypt(password)
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(prepared, salt)
+        return hashed.decode('utf-8')
+
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """Verifies a plain password against a stored bcrypt hash"""
+        try:
+            prepared = self._hash_for_bcrypt(plain_password)
+            return bcrypt.checkpw(prepared, hashed_password.encode('utf-8'))
+        except Exception as e:
+            print(f"PASSWORD_VERIFY_ERROR: {e}")
+            return False
+
+    async def generate_otp(self, email: str):
+        # 1. Cleanup old codes for this email in Dataverse (Best effort)
+        if dataverse_service.configured:
+            try:
+                old_data = await dataverse_service.get_data(f"cr034_otp_codeses?$filter=cr034_email eq '{email}'")
+                for item in old_data.get("value", []):
+                    # We'd need a delete_data method, but for now we'll just let them expire or ignore
+                    pass 
+            except: pass
 
         code = str(random.randint(100000, 999999))
+        now = datetime.datetime.utcnow()
         expiry = now + datetime.timedelta(minutes=10)
-        self.otp_store[email] = {"code": code, "expires": expiry, "sent_at": now}
         
-        # REAL EMAILER: Send via Resend (Domain Verified!)
+        # 2. SAVE TO DATAVERSE
+        if dataverse_service.configured:
+            try:
+                payload = {
+                    "cr034_email": email,
+                    "cr034_code": code,
+                    "cr034_expiresat": expiry.isoformat() + "Z"
+                }
+                await dataverse_service.post_data("cr034_otp_codeses", payload)
+            except Exception as e:
+                print(f"❌ Failed to save OTP to Dataverse: {e}")
+                raise Exception("Identity service temporarily unavailable. Please try again.")
+
+        # 3. REAL EMAILER: Send via Resend (Domain Verified!)
         if self.email_configured:
             try:
                 params = {
@@ -47,7 +88,7 @@ class AuthService:
                     "html": f"""
                     <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                         <h2 style="color: #1c2541;">Build_Trust CRM</h2>
-                        <p>Namaste! Use the following code to verify your identity and complete your booking:</p>
+                        <p>Namaste! Use the following code to verify your identity:</p>
                         <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #ff6f00; margin: 20px 0;">
                             {code}
                         </div>
@@ -71,23 +112,37 @@ class AuthService:
         print(f"🔢 YOUR OTP CODE: {code}")
         print("="*40 + "\n")
 
-    def verify_otp(self, email: str, code: str):
-        if email not in self.otp_store:
-            return False, "No OTP requested for this email"
-        
-        stored_data = self.otp_store[email]
-        
-        if datetime.datetime.utcnow() > stored_data["expires"]:
-            del self.otp_store[email]
-            return False, "OTP has expired"
-        
-        if stored_data["code"] != code:
-            return False, "Invalid OTP code"
-        
-        # Success! Clear OTP and generate token
-        del self.otp_store[email]
-        token = self.create_access_token(email)
-        return True, token
+    async def verify_otp(self, email: str, code: str):
+        if not dataverse_service.configured:
+            return False, "Dataverse connection required for verification"
+
+        try:
+            # Query for the latest valid code for this email
+            # Note: Dataverse plural names often end in 'es' or 's'
+            filter_str = f"cr034_email eq '{email}' and cr034_code eq '{code}'"
+            endpoint = f"cr034_otp_codeses?$filter={filter_str}&$orderby=createdon desc&$top=1"
+            data = await dataverse_service.get_data(endpoint)
+            
+            records = data.get("value", [])
+            if not records:
+                return False, "Invalid or expired code"
+            
+            stored_data = records[0]
+            expiry_str = stored_data.get("cr034_expiresat")
+            
+            # Simple string comparison or date parsing
+            # ISO format: 2026-05-29T12:00:00Z
+            expiry_date = datetime.datetime.fromisoformat(expiry_str.replace('Z', '+00:00'))
+            
+            if datetime.datetime.now(datetime.timezone.utc) > expiry_date:
+                return False, "Code has expired"
+            
+            # Success! Generate token
+            token = self.create_access_token(email)
+            return True, token
+        except Exception as e:
+            print(f"OTP_VERIFY_ERROR: {e}")
+            return False, "Verification system error"
 
     def create_access_token(self, email: str):
         payload = {
@@ -96,5 +151,28 @@ class AuthService:
             "iat": datetime.datetime.utcnow()
         }
         return jwt.encode(payload, self.secret_key, algorithm="HS256")
+
+    def verify_token(self, token: str):
+        try:
+            payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
+            return payload.get("sub")
+        except jwt.ExpiredSignatureError:
+            raise Exception("Token has expired")
+        except jwt.InvalidTokenError:
+            raise Exception("Invalid token")
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException
+
+security = HTTPBearer()
+
+async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        email = auth_service.verify_token(auth.credentials)
+        if not email:
+            raise HTTPException(status_code=401, detail="Invalid user session")
+        return {"email": email}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 auth_service = AuthService()

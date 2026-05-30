@@ -71,8 +71,26 @@ class DataverseService:
             url = f"{self.resource.rstrip('/')}/api/data/v9.2/{endpoint}"
             response = await client.post(url, headers=headers, json=data)
             if response.status_code >= 400:
-                # This will help us see EXACTLY what Dataverse is complaining about
                 print(f"DEBUG Error Body: {response.text}")
+            response.raise_for_status()
+            return response.json() if response.status_code != 204 else None
+
+    async def patch_data(self, endpoint: str, data: dict):
+        """Update existing record using PATCH"""
+        token = await self.get_access_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "OData-MaxVersion": "4.0",
+            "OData-Version": "4.0",
+            "Accept": "application/json",
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            url = f"{self.resource.rstrip('/')}/api/data/v9.2/{endpoint}"
+            response = await client.patch(url, headers=headers, json=data)
+            if response.status_code >= 400:
+                print(f"DEBUG Patch Error: {response.text}")
             response.raise_for_status()
             return response.json() if response.status_code != 204 else None
 
