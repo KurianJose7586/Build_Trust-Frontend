@@ -86,14 +86,47 @@ class AuthService:
                     "to": email,
                     "subject": f"{code} is your Build_Trust verification code",
                     "html": f"""
-                    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                        <h2 style="color: #1c2541;">Build_Trust CRM</h2>
-                        <p>Namaste! Use the following code to verify your identity:</p>
-                        <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #ff6f00; margin: 20px 0;">
-                            {code}
-                        </div>
-                        <p style="font-size: 12px; color: #666;">This code will expire in 10 minutes. If you didn't request this, please ignore this email.</p>
-                    </div>
+                    <!DOCTYPE html>
+                    <html>
+                    <body style="margin: 0; padding: 0; background-color: #f6f9fc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding: 40px 0;">
+                            <tr>
+                                <td align="center">
+                                    <table border="0" cellpadding="0" cellspacing="0" width="480" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e1e8ed;">
+                                        <!-- Header -->
+                                        <tr>
+                                            <td style="padding: 32px 40px; background-color: #0b132b; color: #ffffff; text-align: left;">
+                                                <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Build<span style="color: #ff6f00;">_Trust</span></h1>
+                                                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.8; letter-spacing: 1px; text-transform: uppercase;">Enterprise Operations Hub</p>
+                                            </td>
+                                        </tr>
+                                        <!-- Body -->
+                                        <tr>
+                                            <td style="padding: 40px;">
+                                                <h2 style="margin: 0 0 16px 0; color: #1a202c; font-size: 20px; font-weight: 600;">Verify your identity</h2>
+                                                <p style="margin: 0 0 24px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">Namaste! Please use the secure verification code below to complete your login or registration.</p>
+                                                
+                                                <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                                                    <span style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 8px; font-weight: 600; letter-spacing: 1px;">Your 6-Digit Code</span>
+                                                    <div style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: 700; color: #ff6f00; letter-spacing: 8px;">{code}</div>
+                                                </div>
+
+                                                <p style="margin: 0; color: #718096; font-size: 13px; line-height: 1.5;">This code is valid for <strong>10 minutes</strong>. If you did not request this email, you can safely ignore it.</p>
+                                            </td>
+                                        </tr>
+                                        <!-- Footer -->
+                                        <tr>
+                                            <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #edf2f7; text-align: center;">
+                                                <p style="margin: 0; font-size: 12px; color: #a0aec0;">&copy; 2026 Build_Trust India. All rights reserved.</p>
+                                                <p style="margin: 8px 0 0 0; font-size: 11px; color: #cbd5e1;">Infrastructure managed by Kurian Jose Enterprise Systems</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </body>
+                    </html>
                     """
                 }
                 resend.Emails.send(params)

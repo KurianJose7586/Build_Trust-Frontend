@@ -10,3 +10,4 @@ pyjwt
 resend
 passlib[bcrypt]
 email-validator
+groq
