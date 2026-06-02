@@ -33,14 +33,20 @@ class OpenRouterService:
         }
 
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            try:
-                response = await client.post(self.base_url, headers=headers, json=payload, timeout=30.0)
-                response.raise_for_status()
-                result = response.json()
-                return result['choices'][0]['message']['content']
-            except Exception as e:
-                print(f"AI Service Error: {e}")
-                return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again in a moment."
+            response = await client.post(self.base_url, headers=headers, json=payload, timeout=30.0)
+            
+            if response.status_code != 200:
+                print(f"❌ OpenRouter Error ({response.status_code}): {response.text}")
+                if response.status_code == 429:
+                    raise Exception("RATE_LIMIT_REACHED")
+                raise Exception(f"AI_SERVICE_UNAVAILABLE_{response.status_code}")
+
+            result = response.json()
+            if 'choices' not in result or not result['choices']:
+                print(f"❌ Unexpected AI Response Structure: {result}")
+                raise Exception("MALFORMED_AI_RESPONSE")
+
+            return result['choices'][0]['message']['content']
 
     async def get_cost_estimate(self, description: str):
         # Legacy support for single-shot estimate if needed
