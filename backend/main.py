@@ -64,7 +64,12 @@ async def admin_bypass_middleware(request: Request, call_next):
             if email == "admin@buildtrust.com" and password == "1234@":
                 log("🚨 MIDDLEWARE: Admin bypass triggered!")
                 token = auth_service.create_access_token(email)
-                return JSONResponse(content={"status": "success", "token": token, "user": {"email": email, "role": "admin", "name": "Vikram Singh"}})
+                response = JSONResponse(content={"status": "success", "token": token, "user": {"email": email, "role": "admin", "name": "Vikram Singh"}})
+                # Manually add CORS headers since we are bypassing the middleware chain
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                response.headers["Access-Control-Allow-Methods"] = "*"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+                return response
         except Exception: pass
             
     response = await call_next(request)
