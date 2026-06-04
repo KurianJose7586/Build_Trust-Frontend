@@ -58,6 +58,12 @@ function ProfileViewWrapper({
       workers={workers}
       setActiveView={changeRoute}
       onOpenBookingWizard={(workerId) => {
+        if (!isLoggedIn) {
+          addToast("Please login to book specialists", "info");
+          setAuthModalMode('signup');
+          setActiveModal('login');
+          return;
+        }
         setBookingWorkerId(workerId);
         setWizardStep(1);
         setActiveModal('booking');
@@ -65,6 +71,7 @@ function ProfileViewWrapper({
       onOpenChatSimulator={(workerId) => {
         if (!isLoggedIn) {
           addToast("Please login to chat with specialists", "info");
+          setAuthModalMode('signup');
           setActiveModal('login');
           return;
         }
@@ -72,6 +79,12 @@ function ProfileViewWrapper({
         setActiveModal('chat');
       }}
       onCallWorker={(name) => {
+        if (!isLoggedIn) {
+          addToast("Please login to connect with specialists via direct call", "info");
+          setAuthModalMode('signup');
+          setActiveModal('login');
+          return;
+        }
         addToast(`Initiating secure direct call connection with ${name}...`, 'info');
       }}
     />
@@ -320,6 +333,24 @@ export default function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3500);
   };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+K to open AI Tool
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        openAiTool();
+      }
+      // Esc to close modals and menu
+      if (e.key === 'Escape') {
+        setActiveModal(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const handleToastEvent = (e) => {
@@ -798,6 +829,7 @@ export default function App() {
 
   return (
     <React.Fragment>
+      <a href="#main-content" className="skip-to-content">Skip to Main Content</a>
       {/* Client Header */}
       {location.pathname !== '/admin' && (
         <Header 
@@ -852,6 +884,11 @@ export default function App() {
                 fetchWorkers(searchFilters, nextPage);
               }}
               onPrefetch={prefetchWorker}
+              isLoggedIn={isLoggedIn}
+              onOpenLogin={(mode = 'login') => {
+                setAuthModalMode(mode);
+                setActiveModal('login');
+              }}
             />
           } />
 
@@ -1312,7 +1349,7 @@ export default function App() {
       )}
 
       {/* TOASTS */}
-      <div className="toast-container">
+      <div className="toast-container" aria-live="polite">
         {toasts.map(toast => (
           <div key={toast.id} className={`toast ${toast.type}`}>
             {toast.type === 'success' ? <span>✓</span> : <span style={{ marginRight: '6px' }}>⚠</span>}
