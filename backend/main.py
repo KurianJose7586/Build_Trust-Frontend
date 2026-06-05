@@ -63,7 +63,7 @@ async def admin_bypass_middleware(request: Request, call_next):
             password = body.get("password", "")
             if email == "admin@buildtrust.com" and password == "1234@":
                 log("🚨 MIDDLEWARE: Admin bypass triggered!")
-                token = auth_service.create_access_token(email)
+                token = auth_service.create_access_token(email, "admin")
                 response = JSONResponse(content={"status": "success", "token": token, "user": {"email": email, "role": "admin", "name": "Vikram Singh"}})
                 # Manually add CORS headers since we are bypassing the middleware chain
                 response.headers["Access-Control-Allow-Origin"] = "*"
@@ -172,6 +172,30 @@ async def register_user(request: RegisterRequest):
     token = auth_service.create_access_token(email, request.role)
     return {"status": "success", "token": token, "user": {"email": email, "role": request.role, "name": request.fullName}}
 
+@app.post("/api/auth/send-otp")
+async def send_otp(request: OtpRequest):
+    email = request.email.lower().strip()
+    if email == "admin@buildtrust.com": return {"status": "error", "message": "Use password."}
+    try:
+        await auth_service.generate_otp(email)
+        return {"status": "success"}
+    except Exception: return {"status": "error"}
+
+@app.post("/api/auth/verify-otp")
+async def verify_otp(request: OtpVerify):
+    # This verification returns a token but we need to know the role
+    # For simplicity in this flow, we assume 'customer' unless they already exist
+    success, result = await auth_service.verify_otp(request.email, request.code)
+    if not success: return {"status": "error", "message": result}
+    
+    # Check if they exist to get correct role for the token
+    local_user = user_db.get_user(request.email)
+    role = local_user.get("role", "customer") if local_user else "customer"
+    
+    # Re-generate token with role
+    token = auth_service.create_access_token(request.email, role)
+    return {"status": "success", "token": token, "user": {"email": request.email, "role": role}}
+
 # --- ADMIN API (PROTECTED) ---
 
 @app.get("/api/admin/stats")
@@ -196,12 +220,89 @@ async def get_live_ops(user: dict = Depends(role_required(["admin"]))):
 
 # --- CORE API ---
 
+@app.get("/api/workers")
+async def get_workers(
+    category: str = "All", 
+    text: str = "", 
+    page: int = 1, 
+    limit: int = 20,
+    min_rating: float = 0,
+    max_rate: int = 1000000
+):
+    if not dataverse_service.configured:
+        filtered = MOCK_WORKERS
+        if category != "All": filtered = [w for w in filtered if w.get("specialty") == category]
+        if text: 
+            s = text.lower()
+            filtered = [w for w in filtered if s in w.get("name").lower() or s in w.get("specialty").lower()]
+        
+        # Apply filters
+        filtered = [w for w in filtered if w.get("rating", 0) >= min_rating and w.get("rate", 0) <= max_rate]
+        
+        # Simple pagination
+        start = (page - 1) * limit
+        return filtered[start : start + limit]
+
+    try:
+        filters = []
+        if category != "All": filters.append(f"cr034_specialty eq '{urllib.parse.quote(category)}'")
+        if text:
+            s = urllib.parse.quote(text.replace("'", "''"))
+            filters.append(f"(contains(cr034_name, '{s}') or contains(cr034_specialty, '{s}'))")
+        
+        filters.append(f"cr034_rating ge {min_rating}")
+        filters.append(f"cr034_hourlyrate le {max_rate}")
+        
+        endpoint = f"cr034_specialists?$top={limit}&$skip={(page-1)*limit}"
+        if filters: endpoint += f"&$filter={' and '.join(filters)}"
+        
+        data = await dataverse_service.get_data(endpoint)
+        return [{
+            "id": w.get("cr034_specialistid"), 
+            "name": w.get("cr034_name"), 
+            "specialty": w.get("cr034_specialty", "General"),
+            "rate": w.get("cr034_hourlyrate") or 300, 
+            "rating": w.get("cr034_rating") or 4.0, 
+            "verified": w.get("cr034_verified") or False,
+            "image": "/assets/images/worker_rajesh_kumar.png"
+        } for w in data.get("value", [])]
+    except Exception: return MOCK_WORKERS
+
+@app.post("/api/leads")
+async def create_lead(lead: LeadCreate, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
+    if not dataverse_service.configured: return {"status": "success", "message": "Lead Created (Mock Mode)"}
+    try:
+        await dataverse_service.post_data("cr034_leadses", {
+            "cr034_name": lead.title, 
+            "cr034_category": lead.category, 
+            "cr034_location": lead.location, 
+            "cr034_budget": lead.budget, 
+            "cr034_description": lead.desc
+        })
+        return {"status": "success"}
+    except Exception: raise HTTPException(status_code=500)
+
 @app.post("/api/jobs")
 async def create_job(job: JobCreate, user: dict = Depends(get_current_user)):
     # Standard booking endpoint
     if not dataverse_service.configured: return {"status": "success", "message": "Booked (Mock Mode)"}
     try:
         # In a real app, we'd save to Dataverse here
+        return {"status": "success"}
+    except Exception: raise HTTPException(status_code=500)
+
+@app.post("/api/chat")
+async def send_chat_message(msg: ChatMessageCreate, user: dict = Depends(get_current_user)):
+    if not dataverse_service.configured: 
+        log(f"Mock Chat: {user['sub']} -> {msg.workerId}: {msg.text}")
+        return {"status": "success"}
+    try:
+        await dataverse_service.post_data("cr034_messageses", {
+            "cr034_sender": "client", 
+            "cr034_content": msg.text, 
+            "cr034_workerid": msg.workerId, 
+            "cr034_customerid": user['sub']
+        })
         return {"status": "success"}
     except Exception: raise HTTPException(status_code=500)
 
