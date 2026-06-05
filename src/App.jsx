@@ -725,16 +725,6 @@ export default function App() {
         return { ...prev, [workerId]: list };
       });
 
-      // Simulation: Auto-reply
-      setTimeout(async () => {
-        const replyText = "Thank you for the message! I've received your inquiry and will review the project specs shortly.";
-        const workerMsg = { sender: 'worker', text: replyText };
-        setChatLogs(prev => {
-          const list = prev[workerId] || [];
-          return { ...prev, [workerId]: [...list, workerMsg] };
-        });
-      }, 1000);
-
     } catch (err) {
       console.error("Chat persistence failed", err);
     }
