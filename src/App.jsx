@@ -33,18 +33,16 @@ function ProfileViewWrapper({
 
   // FETCH CHAT HISTORY ON LOAD
   useEffect(() => {
-    const token = localStorage.getItem('bt_token');
-    if (token && id) {
+    if (isLoggedIn && id) {
       const fetchChat = async () => {
         try {
-          const res = await fetch(`http://localhost:8005/api/chat/${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
+          const res = await authenticatedFetch(`http://localhost:8005/api/chat/${id}`);
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             setChatLogs(prev => ({ ...prev, [id]: data }));
           }
         } catch (err) {
+          // AUTH_INVALID handled by authenticatedFetch
           console.error("Chat fetch failed", err);
         }
       };
