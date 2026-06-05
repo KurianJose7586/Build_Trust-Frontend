@@ -845,17 +845,9 @@ export default function App() {
     addToast(`Successfully resolved issue #BT-${issueId.substring(5)}`);
   };
 
-  // 10. RESCUE BYPASS (Debug Only)
+  // 10. FINAL PLATFORM SYNC
   useEffect(() => {
-    window.rescueAdmin = () => {
-      console.warn("RESCUE BYPASS: Entering Admin Mode manually.");
-      const mockData = {
-        token: "rescue_token_" + Date.now(),
-        user: { email: 'admin@buildtrust.com', role: 'admin', name: 'Vikram Singh (Rescue)' }
-      };
-      loginSuccess(mockData);
-    };
-    console.log("%c Build_Trust Debug: If Admin Login fails, type 'rescueAdmin()' in this console.", "color: #ff6f00; font-weight: bold; font-size: 14px;");
+    log("Build_Trust Online Sync: Monitoring for trade-matching events...");
   }, []);
 
   return (
