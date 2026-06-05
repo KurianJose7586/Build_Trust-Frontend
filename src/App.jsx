@@ -190,11 +190,37 @@ export default function App() {
   const authenticatedFetch = async (url, options = {}) => {
     const token = localStorage.getItem('bt_token');
     const headers = {
-      ...options.headers,
       'Content-Type': 'application/json',
+      ...options.headers,
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
-    return fetch(url, { ...options, headers });
+    
+    try {
+      const response = await fetch(url, { ...options, headers });
+      
+      // AUTO LOGOUT ON EXPIRED OR UNAUTHORIZED SESSION
+      if (response.status === 401 || response.status === 403) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn("🔐 Auth Security Triggered:", errorData.detail || "Session invalid");
+        
+        // Clear everything
+        localStorage.removeItem('bt_token');
+        localStorage.removeItem('bt_user');
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        setActiveModal(null);
+        navigate('/login');
+        
+        addToast(errorData.detail || "Your session has expired. Please login again.", "warning");
+        throw new Error("AUTH_INVALID");
+      }
+      
+      return response;
+    } catch (err) {
+      if (err.message === "AUTH_INVALID") throw err;
+      console.error("Fetch failed:", err);
+      throw err;
+    }
   };
 
   // FETCH WORKERS FROM BACKEND (with SWR Caching)
@@ -259,6 +285,9 @@ export default function App() {
   useEffect(() => {
     let interval;
     const fetchAdminStats = async () => {
+      // SECURITY: Only poll if user is actually an admin
+      if (currentUser?.role !== 'admin') return;
+
       // SWR Cache: Load full state
       const cached = localStorage.getItem('bt_cache_admin_state');
       if (cached) setAdminState(JSON.parse(cached));
@@ -285,18 +314,19 @@ export default function App() {
           });
         }
       } catch (err) {
+        // AUTH_INVALID error is handled inside authenticatedFetch
         console.error("Failed to fetch admin data:", err);
       } finally {
         setIsLoadingAdmin(false);
       }
     };
     
-    if (isLoggedIn) {
+    if (isLoggedIn && currentUser?.role === 'admin') {
       fetchAdminStats();
       interval = setInterval(fetchAdminStats, 30000); // Sync every 30s
     }
     return () => clearInterval(interval);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, currentUser]);
   
   // Modals & Overlays Visibility
   const [activeModal, setActiveModal] = useState(null); 
@@ -616,6 +646,13 @@ export default function App() {
          })
        });
        const data = await res.json();
+       
+       if (res.status === 400 && data.detail?.includes("already exists")) {
+         addToast(data.detail, "info");
+         setAuthStep('login_options'); // Switch to login instead of register
+         return;
+       }
+
        if (data.status === "success" || data.status === "mock_success") {
          loginSuccess(data);
          addToast("Account created successfully!");
@@ -626,11 +663,17 @@ export default function App() {
   };
 
   const loginSuccess = (data) => {
+    // Check if user is new (mock logic: if they just registered or have no previous session)
+    const isNew = data.isNew || !localStorage.getItem('bt_user');
+    const userWithNewFlag = { ...data.user, isNew };
+
     localStorage.setItem('bt_token', data.token);
-    localStorage.setItem('bt_user', JSON.stringify(data.user));
+    localStorage.setItem('bt_user', JSON.stringify(userWithNewFlag));
     setIsLoggedIn(true);
-    setCurrentUser(data.user);
-    addToast(`Welcome, ${data.user.name || data.user.email}!`);
+    setCurrentUser(userWithNewFlag);
+    
+    const greeting = isNew ? "Welcome to Build_Trust!" : `Welcome back, ${data.user.name || data.user.email}!`;
+    addToast(greeting);
     
     // REVEAL AI RESULT IF WAITING
     if (pendingAiResult) {
