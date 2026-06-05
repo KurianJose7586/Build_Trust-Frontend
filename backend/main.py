@@ -247,19 +247,20 @@ async def get_workers(
     min_rating: float = 0,
     max_rate: int = 1000000
 ):
-    if not dataverse_service.configured:
+    # Calculate pagination offset
+    skip_val = (page - 1) * limit
+
+    def get_filtered_mock():
         filtered = MOCK_WORKERS
         if category != "All": filtered = [w for w in filtered if w.get("specialty") == category]
         if text: 
             s = text.lower()
             filtered = [w for w in filtered if s in w.get("name").lower() or s in w.get("specialty").lower()]
-        
-        # Apply filters
         filtered = [w for w in filtered if w.get("rating", 0) >= min_rating and w.get("rate", 0) <= max_rate]
-        
-        # Simple pagination
-        start = (page - 1) * limit
-        return filtered[start : start + limit]
+        return filtered[skip_val : skip_val + limit]
+
+    if not dataverse_service.configured:
+        return get_filtered_mock()
 
     try:
         filters = []
@@ -271,10 +272,47 @@ async def get_workers(
         filters.append(f"cr034_rating ge {min_rating}")
         filters.append(f"cr034_hourlyrate le {max_rate}")
         
-        endpoint = f"cr034_specialists?$top={limit}&$skip={(page-1)*limit}"
+        # SECRET DIVERSITY LOGIC: Oversample to filter for unique names
+        # Fetch 3x the requested amount to ensure we find enough unique names
+        fetch_limit = limit * 3 if page == 1 else limit 
+        
+        endpoint = f"cr034_specialists?$top={fetch_limit}&$skip={skip_val}&$orderby=cr034_rating desc, cr034_name asc"
+        
+        if skip_val == 0:
+             endpoint = f"cr034_specialists?$top={fetch_limit}&$orderby=cr034_rating desc, cr034_name asc"
+            
         if filters: endpoint += f"&$filter={' and '.join(filters)}"
         
         data = await dataverse_service.get_data(endpoint)
+        raw_results = data.get("value", [])
+
+        if not raw_results:
+            return []
+
+        # Process uniqueness
+        seen_names = set()
+        unique_results = []
+        duplicates = []
+        
+        for w in raw_results:
+            name = w.get("cr034_name")
+            if name not in seen_names and len(unique_results) < limit:
+                unique_results.append(w)
+                seen_names.add(name)
+            else:
+                duplicates.append(w)
+        
+        # Combine, putting unique results at the very top
+        final_raw = (unique_results + duplicates)[:limit]
+        
+        # Available images for rotation
+        images = [
+            "/assets/images/worker_rajesh_kumar.png",
+            "/assets/images/worker_sarah_jenkins.png",
+            "/assets/images/worker_marcus_thorne.png",
+            "/assets/images/worker_robert_chen.png"
+        ]
+
         return [{
             "id": w.get("cr034_specialistid"), 
             "name": w.get("cr034_name"), 
@@ -282,9 +320,11 @@ async def get_workers(
             "rate": w.get("cr034_hourlyrate") or 300, 
             "rating": w.get("cr034_rating") or 4.0, 
             "verified": w.get("cr034_verified") or False,
-            "image": "/assets/images/worker_rajesh_kumar.png"
-        } for w in data.get("value", [])]
-    except Exception: return MOCK_WORKERS
+            "image": images[i % len(images)]
+        } for i, w in enumerate(final_raw)]
+    except Exception as e:
+        log(f"Dataverse Search Failed: {e}")
+        return get_filtered_mock()
 
 @app.post("/api/leads")
 async def create_lead(lead: LeadCreate, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
