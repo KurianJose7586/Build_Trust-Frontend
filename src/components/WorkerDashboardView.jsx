@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
+import API_URL from '../config';
 
 export default function WorkerDashboardView({ 
   currentUser, 
@@ -21,7 +22,7 @@ export default function WorkerDashboardView({
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('bt_token');
-        const res = await fetch('http://localhost:8005/api/specialist/stats', {
+        const res = await fetch(`${API_URL}/api/specialist/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();

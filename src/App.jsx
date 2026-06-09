@@ -12,6 +12,7 @@ import WorkerDashboardView from './components/WorkerDashboardView';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
 import AuthCard from './components/AuthCard';
+import API_URL from './config';
 
 import { initialWorkers, initialAdminState } from './data/mockData';
 
@@ -64,7 +65,7 @@ export default function App() {
       if (isLoggedIn && id) {
         const fetchChat = async () => {
           try {
-            const res = await authenticatedFetch(`http://localhost:8005/api/chat/${id}`);
+            const res = await authenticatedFetch(`${API_URL}/api/chat/${id}`);
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
               setChatLogs(prev => ({ ...prev, [id]: data }));
@@ -140,7 +141,7 @@ export default function App() {
   useEffect(() => {
     const wakeup = async () => {
       try {
-        await fetch('http://localhost:8005/');
+        await fetch(`${API_URL}/`);
         console.log("Backend wake-up signal sent successfully.");
       } catch (err) {
         console.warn("Backend still sleeping or unreachable.");
@@ -247,7 +248,7 @@ export default function App() {
         max_rate: filters.budget || 1000000
       });
 
-      const response = await fetch(`http://localhost:8005/api/workers?${queryParams.toString()}`);
+      const response = await fetch(`${API_URL}/api/workers?${queryParams.toString()}`);
       const data = await response.json();
       if (Array.isArray(data)) {
         if (page === 1) {
@@ -296,8 +297,8 @@ export default function App() {
       setIsLoadingAdmin(true);
       try {
         const [statsRes, opsRes] = await Promise.all([
-          authenticatedFetch('http://localhost:8005/api/admin/stats'),
-          authenticatedFetch('http://localhost:8005/api/admin/live-ops')
+          authenticatedFetch(`${API_URL}/api/admin/stats`),
+          authenticatedFetch(`${API_URL}/api/admin/live-ops`)
         ]);
         
         const statsData = await statsRes.json();
@@ -442,7 +443,7 @@ export default function App() {
     };
 
     try {
-      const response = await authenticatedFetch('http://localhost:8005/api/payments/create-session', {
+      const response = await authenticatedFetch(`${API_URL}/api/payments/create-session`, {
         method: 'POST',
         body: JSON.stringify(bookingPayload)
       });
@@ -491,7 +492,7 @@ export default function App() {
     addToast("Posting your project requirements...", "info");
 
     try {
-      const response = await authenticatedFetch('http://localhost:8005/api/leads', {
+      const response = await authenticatedFetch(`${API_URL}/api/leads`, {
         method: 'POST',
         body: JSON.stringify(postJobForm)
       });
@@ -534,7 +535,7 @@ export default function App() {
     }
     console.log(`Identifying email: ${email}`);
     try {
-      const res = await fetch('http://localhost:8005/api/auth/check-email', {
+      const res = await fetch(`${API_URL}/api/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email })
@@ -554,7 +555,7 @@ export default function App() {
 
   const handleSendOtp = async (isRegistering = false) => {
     try {
-      const res = await fetch('http://localhost:8005/api/auth/send-otp', {
+      const res = await fetch(`${API_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: authEmail })
@@ -577,7 +578,7 @@ export default function App() {
     const password = authPassword;
     console.log(`Login attempt for: ${email}`);
     try {
-      const res = await fetch('http://localhost:8005/api/auth/login-password', {
+      const res = await fetch(`${API_URL}/api/auth/login-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, password: password })
@@ -597,7 +598,7 @@ export default function App() {
 
   const handleVerifyOtp = async () => {
     try {
-      const res = await fetch('http://localhost:8005/api/auth/verify-otp', {
+      const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: authEmail, code: otpValue })
@@ -605,7 +606,7 @@ export default function App() {
       const data = await res.json();
       if (data.status === "success") {
         // If they exist, log them in. If not, go to register profile.
-        const checkRes = await fetch('http://localhost:8005/api/auth/check-email', {
+        const checkRes = await fetch(`${API_URL}/api/auth/check-email`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ email: authEmail })
@@ -631,7 +632,7 @@ export default function App() {
         return;
      }
      try {
-       const res = await fetch('http://localhost:8005/api/auth/register', {
+       const res = await fetch(`${API_URL}/api/auth/register`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
@@ -707,7 +708,7 @@ export default function App() {
     setChatInput("");
 
     try {
-      await authenticatedFetch('http://localhost:8005/api/chat', {
+      await authenticatedFetch(`${API_URL}/api/chat`, {
         method: 'POST',
         body: JSON.stringify({
           workerId: workerId,
@@ -768,7 +769,7 @@ export default function App() {
     }, 1500);
 
     try {
-      const response = await fetch('http://localhost:8005/api/ai/agent', {
+      const response = await fetch(`${API_URL}/api/ai/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages })
