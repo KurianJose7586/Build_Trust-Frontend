@@ -11,3 +11,5 @@ resend
 passlib[bcrypt]
 email-validator
 groq
+dodopayments
+standardwebhooks

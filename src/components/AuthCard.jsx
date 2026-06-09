@@ -10,6 +10,11 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const addToast = (message, type = 'success') => {
+    const event = new CustomEvent('show-toast', { detail: { message, type } });
+    window.dispatchEvent(event);
+  };
+
   // OTP cooldown timer
   useEffect(() => {
     let interval;
@@ -21,11 +26,6 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
     return () => clearInterval(interval);
   }, [otpCooldown]);
 
-  const addToast = (message, type = 'success') => {
-    const event = new CustomEvent('show-toast', { detail: { message, type } });
-    window.dispatchEvent(event);
-  };
-
   // Submit password-based login
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
@@ -34,12 +34,16 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
       addToast('Please enter both email and password', 'info');
       return;
     }
+    
     setIsLoading(true);
     try {
       const res = await fetch('http://localhost:8005/api/auth/login-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password })
+        body: JSON.stringify({ 
+          email: cleanEmail, 
+          password
+        })
       });
       const data = await res.json();
       if (res.ok && data.status === 'success') {
@@ -62,6 +66,7 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
       addToast('Please fill out all fields', 'info');
       return;
     }
+
     setIsLoading(true);
     try {
       const res = await fetch('http://localhost:8005/api/auth/register', {
@@ -95,12 +100,15 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
       addToast('Please enter a valid email address first', 'info');
       return;
     }
+
     setIsLoading(true);
     try {
       const res = await fetch('http://localhost:8005/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail })
+        body: JSON.stringify({ 
+          email: cleanEmail
+        })
       });
       const data = await res.json();
       if (res.ok && data.status === 'success') {
@@ -108,7 +116,7 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
         setOtpCooldown(60);
         addToast('Verification code sent to your inbox!');
       } else {
-        addToast(data.message || 'Failed to send OTP code', 'error');
+        addToast(data.message || data.detail || 'Failed to send OTP code', 'error');
       }
     } catch (err) {
       addToast('Failed to send OTP code.', 'error');
@@ -431,6 +439,7 @@ export default function AuthCard({ initialMode = 'login', onAuthSuccess, onClose
                 />
               </div>
             </div>
+
             <button 
               type="submit" 
               className="auth-btn auth-btn-accent" 

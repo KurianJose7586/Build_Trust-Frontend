@@ -57,3 +57,6 @@ logs
 # OS
 Thumbs.db
 db.sqlite3
+
+# Backend Repo
+backend/

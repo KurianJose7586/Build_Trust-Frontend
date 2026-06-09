@@ -58,11 +58,23 @@ async def main():
 
         messages.append({"role": "user", "content": user_input})
 
+        # Hard Enforcement: Limit to 2-3 questions
+        assistant_turns = len([m for m in messages if m.get('role') == 'assistant'])
+        
+        # We modify a COPY of messages to inject the instruction without bloating history
+        active_messages = [m for m in messages]
+        if assistant_turns >= 2:
+            # Inject enforcement into the system prompt for the next call
+            active_messages[0] = {
+                "role": "system",
+                "content": active_messages[0]["content"] + "\nCRITICAL: You have asked enough questions. You MUST now provide the final estimate in 'READY' status JSON."
+            }
+
         ai_msg = None
         for current_model in FREE_MODELS:
             payload = {
                 "model": current_model,
-                "messages": messages
+                "messages": active_messages
             }
             
             headers = {

@@ -11,13 +11,16 @@ from typing import List, Optional
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, Request, BackgroundTasks, Response
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.services.dataverse_service import dataverse_service
 from app.services.ai.groq_service import ai_service # Switched from OpenRouter
 from app.services.auth_service import auth_service, get_current_user
 from app.services.user_db import user_db
+from app.services.payment_service import payment_service
 from app.schemas import (
     LeadCreate, JobCreate, ChatMessageCreate, 
     OtpRequest, OtpVerify, CheckEmailRequest, 
@@ -402,6 +405,9 @@ async def ai_agent_chat(request: Request, payload: dict):
 
     history = payload.get("messages", [])
     
+    # COUNT TURNS (Assistant questions)
+    assistant_turns = len([m for m in history if m.get('role') == 'assistant'])
+    
     system_content = """
     You are the Build_Trust Premium Project Manager. Your mission is to scope construction projects.
     STRICT PROTOCOL:
@@ -415,6 +421,10 @@ async def ai_agent_chat(request: Request, payload: dict):
     Else return:
     { "status": "QUESTION", "message": "Technical question?", "chips": ["Opt 1", "Opt 2"] }
     """
+
+    # HARD ENFORCEMENT: If we've already asked 2 questions, the 3rd response MUST be the estimate.
+    if assistant_turns >= 2:
+        system_content += "\nCRITICAL: You have asked enough questions. You MUST now provide the final estimate in 'READY' status. Use your best professional judgment for any missing details."
     
     clean_history = [m for m in history if m.get('role') != 'system']
     clean_history.insert(0, {"role": "system", "content": system_content})
@@ -453,6 +463,67 @@ async def ai_agent_chat(request: Request, payload: dict):
 @app.get("/")
 async def root():
     return {"message": "Build_Trust API is LIVE", "port": 8005}
+
+# --- DODO PAYMENTS ---
+
+@app.post("/api/payments/create-session")
+async def create_payment_session(job: JobCreate, user: dict = Depends(get_current_user)):
+    log(f"💰 Creating Dodo Payment Session for {job.workerName} (₹{job.totalCost})")
+    try:
+        # Construct return URL - assuming the frontend runs on port 8000
+        # In a real app, this should be configurable
+        return_url = "http://localhost:8000/profile?payment=success"
+        
+        session = await payment_service.create_checkout_session(
+            amount=int(job.totalCost),
+            customer_email=user['sub'],
+            customer_name=user.get('name', 'Customer'),
+            product_name=f"Service Booking: {job.workerName}",
+            return_url=return_url
+        )
+        return {"status": "success", "checkout_url": session.checkout_url, "session_id": session.id}
+    except Exception as e:
+        log(f"❌ Payment Session Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/payments/webhook")
+async def dodo_webhook(request: Request):
+    payload = await request.body()
+    headers = dict(request.headers)
+    
+    try:
+        # Verify and parse the event
+        event = payment_service.verify_webhook(payload, headers)
+        event_type = event.get("type")
+        data = event.get("data", {})
+        
+        log(f"🔔 Dodo Webhook Received: {event_type}")
+        
+        if event_type == "payment.succeeded":
+            # Extract metadata or customer info to fulfill the order
+            customer_email = data.get("customer", {}).get("email")
+            metadata = data.get("metadata", {})
+            amount = metadata.get("amount")
+            
+            log(f"✅ Payment Fulfilled for {customer_email} - Amount: {amount}")
+            
+            # Here you would typically update Dataverse or your local DB
+            if dataverse_service.configured:
+                await dataverse_service.post_data("cr034_auditlogses", {
+                    "cr034_eventtext": f"Payment Succeeded: ₹{amount} from {customer_email}",
+                    "cr034_eventtype": "payment",
+                    "cr034_eventicon": "₹",
+                    "cr034_eventcolor": "yellow-bg"
+                })
+                
+        elif event_type == "payment.failed":
+            log(f"❌ Payment Failed for {data.get('customer', {}).get('email')}")
+            
+        return {"status": "accepted"}
+    except Exception as e:
+        log(f"⚠️ Webhook Error: {e}")
+        # Return 200 or 400 depending on if you want Dodo to retry
+        return Response(content="Webhook verification failed", status_code=400)
 
 if __name__ == "__main__":
     import uvicorn

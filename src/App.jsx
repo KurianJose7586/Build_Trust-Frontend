@@ -15,79 +15,8 @@ import AuthCard from './components/AuthCard';
 
 import { initialWorkers, initialAdminState } from './data/mockData';
 
-// Wrapper to handle ProfileView with URL params
-function ProfileViewWrapper({ 
-  workers, 
-  changeRoute, 
-  setBookingWorkerId, 
-  setWizardStep, 
-  setActiveModal, 
-  chatLogs, 
-  setChatLogs, 
-  setChattingWorkerId, 
-  addToast,
-  isLoggedIn,
-  currentUser
-}) {
-  const { id } = useParams();
-
-  // FETCH CHAT HISTORY ON LOAD
-  useEffect(() => {
-    if (isLoggedIn && id) {
-      const fetchChat = async () => {
-        try {
-          const res = await authenticatedFetch(`http://localhost:8005/api/chat/${id}`);
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setChatLogs(prev => ({ ...prev, [id]: data }));
-          }
-        } catch (err) {
-          // AUTH_INVALID handled by authenticatedFetch
-          console.error("Chat fetch failed", err);
-        }
-      };
-      fetchChat();
-    }
-  }, [id, isLoggedIn]);
-
-  return (
-    <ProfileView 
-      workerId={id}
-      workers={workers}
-      setActiveView={changeRoute}
-      onOpenBookingWizard={(workerId) => {
-        if (!isLoggedIn) {
-          addToast("Please login to book specialists", "info");
-          setAuthModalMode('signup');
-          setActiveModal('login');
-          return;
-        }
-        setBookingWorkerId(workerId);
-        setWizardStep(1);
-        setActiveModal('booking');
-      }}
-      onOpenChatSimulator={(workerId) => {
-        if (!isLoggedIn) {
-          addToast("Please login to chat with specialists", "info");
-          setAuthModalMode('signup');
-          setActiveModal('login');
-          return;
-        }
-        setChattingWorkerId(workerId);
-        setActiveModal('chat');
-      }}
-      onCallWorker={(name) => {
-        if (!isLoggedIn) {
-          addToast("Please login to connect with specialists via direct call", "info");
-          setAuthModalMode('signup');
-          setActiveModal('login');
-          return;
-        }
-        addToast(`Initiating secure direct call connection with ${name}...`, 'info');
-      }}
-    />
-  );
-}
+// Helper for consistent logging
+const log = (msg) => console.log(`[Build_Trust] ${msg}`);
 
 export default function App() {
   const navigate = useNavigate();
@@ -113,6 +42,80 @@ export default function App() {
   const [authName, setAuthName] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
+
+  // Wrapper to handle ProfileView with URL params (moved inside to access scope)
+  function ProfileViewWrapper({ 
+    workers, 
+    changeRoute, 
+    setBookingWorkerId, 
+    setWizardStep, 
+    setActiveModal, 
+    chatLogs, 
+    setChatLogs, 
+    setChattingWorkerId, 
+    addToast,
+    isLoggedIn,
+    currentUser
+  }) {
+    const { id } = useParams();
+
+    // FETCH CHAT HISTORY ON LOAD
+    useEffect(() => {
+      if (isLoggedIn && id) {
+        const fetchChat = async () => {
+          try {
+            const res = await authenticatedFetch(`http://localhost:8005/api/chat/${id}`);
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              setChatLogs(prev => ({ ...prev, [id]: data }));
+            }
+          } catch (err) {
+            // AUTH_INVALID handled by authenticatedFetch
+            console.error("Chat fetch failed", err);
+          }
+        };
+        fetchChat();
+      }
+    }, [id, isLoggedIn]);
+
+    return (
+      <ProfileView 
+        workerId={id}
+        workers={workers}
+        setActiveView={changeRoute}
+        onOpenBookingWizard={(workerId) => {
+          if (!isLoggedIn) {
+            addToast("Please login to book specialists", "info");
+            setAuthModalMode('signup');
+            setActiveModal('login');
+            return;
+          }
+          setBookingWorkerId(workerId);
+          setWizardStep(1);
+          setActiveModal('booking');
+        }}
+        onOpenChatSimulator={(workerId) => {
+          if (!isLoggedIn) {
+            addToast("Please login to chat with specialists", "info");
+            setAuthModalMode('signup');
+            setActiveModal('login');
+            return;
+          }
+          setChattingWorkerId(workerId);
+          setActiveModal('chat');
+        }}
+        onCallWorker={(name) => {
+          if (!isLoggedIn) {
+            addToast("Please login to connect with specialists via direct call", "info");
+            setAuthModalMode('signup');
+            setActiveModal('login');
+            return;
+          }
+          addToast(`Initiating secure direct call connection with ${name}...`, 'info');
+        }}
+      />
+    );
+  }
 
   // Restore session from localStorage on load
   useEffect(() => {
@@ -416,16 +419,18 @@ export default function App() {
       return;
     }
 
+    const worker = workers.find(w => w.id === bookingWorkerId);
+    if (!worker) return;
+    const totalCost = worker.rate * wizardForm.hours;
+
     if (!isPaymentStep) {
       setIsPaymentStep(true);
       setWizardStep(4); // New step for payment
       return;
     }
 
-    const worker = workers.find(w => w.id === bookingWorkerId);
-    if (!worker) return;
-
-    const totalCost = worker.rate * wizardForm.hours;
+    // REAL DODO PAYMENTS INTEGRATION
+    addToast("Initializing secure checkout...", "info");
     
     const bookingPayload = {
       workerName: worker.name,
@@ -437,41 +442,34 @@ export default function App() {
     };
 
     try {
-      const response = await authenticatedFetch('http://localhost:8005/api/jobs', {
+      const response = await authenticatedFetch('http://localhost:8005/api/payments/create-session', {
         method: 'POST',
         body: JSON.stringify(bookingPayload)
       });
       const data = await response.json();
 
-      if (data.status === "success" || data.status === "mock_success") {
-        setAdminState(prev => {
-          const newActiveJobs = (prev.activeJobs || 0) + 1;
-          const newOnSchedule = (prev.onSchedule || 0) + 1;
-          
-          const newLiveOps = [
-            {
-              id: Date.now(),
-              text: `Hired: ${worker.name} at ${wizardForm.address} (₹${totalCost.toLocaleString()})`,
-              time: "Just now",
-              type: "job",
-              icon: "✓",
-              color: "green-bg"
-            },
-            ...(prev.liveOps || [])
-          ];
-
-          return { ...prev, activeJobs: newActiveJobs, onSchedule: newOnSchedule, liveOps: newLiveOps };
-        });
-        
-        setIsBookingComplete(true);
-        setWizardStep(5);
-        addToast(`Payment successful! ${worker.name} is booked.`);
+      if (data.status === "success" && data.checkout_url) {
+        addToast("Redirecting to Dodo Payments...", "success");
+        // Redirect to Dodo Checkout
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error(data.detail || "Failed to create payment session");
       }
     } catch (err) {
-      console.error("Failed to confirm booking:", err);
-      addToast("Connection delay: your booking will sync when back online.", "warning");
+      console.error("Payment initialization failed:", err);
+      addToast("Secure checkout unavailable. Please try again later.", "error");
     }
   };
+
+  // Handle Return from Payment
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('payment') === 'success') {
+      addToast("Payment successful! Your specialist is booked.", "success");
+      // Clean up the URL
+      navigate('/profile', { replace: true });
+    }
+  }, [location.search]);
 
   // 4. POST JOB WIZARD HANDLERS
   const [postJobForm, setPostJobForm] = useState({
